@@ -227,10 +227,15 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 [작성 지침]
 - 한국어로 작성
 - ${co.industry} 산업 특성을 구체적으로 반영
-- 모든 제안에 관련 법규·인증·가이드라인 출처를 명시
-- 표(markdown table)를 적극 활용하여 가독성 확보
-- 각 영역 개선과제에 최소 3개 이상 구체적 실행과제 포함
-- 반드시 모든 섹션을 빠짐없이 완성하세요. 중간에 끊기지 않도록 주의하세요.`;
+- 모든 제안에 관련 법규·인증·가이드라인 출처를 괄호 안에 명시 (예: (환경정책기본법 제2조), (K-ESG E-1-1))
+- 산업 내 상대 위치는 "출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사)"로 명시
+- 각 영역 개선과제는 반드시 다음 형식의 마크다운 표를 사용:
+| 문항 | 현황분석 | 법규위반 리스크 | 개선방안 | 필요서류 | 수치목표 | 기간 | 예상비용 |
+|------|----------|----------------|----------|----------|----------|------|----------|
+- 기간/비용 산출 근거는 각 표 아래에 ※ 주석으로 명시
+- 실행 로드맵도 표 형태로 작성: | 시기 | 과제 | 담당 | 예산 | KPI |
+- 불필요한 줄바꿈을 최소화하고 내용 밀도를 높이세요
+- 반드시 모든 섹션(1~7)을 빠짐없이 완성하세요. 중간에 끊기지 않도록 주의하세요.`;
 
     const startTime=Date.now();
     try{
@@ -284,35 +289,55 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   // ── ZIP 다운로드 ──
+  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:11pt;line-height:1.8;color:#222;max-width:210mm;margin:20mm auto;padding:0 15mm}h1{font-size:18pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:8px}h2{font-size:14pt;color:#2563eb;margin-top:20px;border-bottom:1px solid #ddd;padding-bottom:4px}h3{font-size:12pt;color:#7c3aed;margin-top:14px}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt}th{background:#f1f5f9;padding:6px 8px;border:1px solid #cbd5e1;font-weight:600;text-align:left}td{padding:5px 8px;border:1px solid #e2e8f0}.footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:9pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
+
   const downloadZip=async()=>{
     const zip=new JSZip();
-    const companyName=co.name.replace(/[^가-힣a-zA-Z0-9]/g,"_");
+    const cn=co.name.replace(/[^가-힣a-zA-Z0-9]/g,"_");
     const now=new Date().toISOString().slice(0,10);
+    const nowKr=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"});
 
-    // 1. 자가진단 결과 보고서 (텍스트)
-    let diagReport=`ESG 자가진단 결과보고서\n${"=".repeat(40)}\n기업명: ${co.name}\n산업군: ${co.industry} | 규모: ${co.size}\n진단일: ${now}\n\nESG 종합: ${res.score}점 (${res.grade} ${res.label})\n환경(E): ${res.eA}/5.0\n사회(S): ${res.sA}/5.0\n지배구조(G): ${res.gA}/5.0\n우수문항: ${res.strong}개 | 취약문항: ${res.weak}개\n\n`;
+    // 1. 자가진단 결과 보고서 (HTML/워드호환)
+    let diagBody=`<p><strong>기업명:</strong> ${co.name} | <strong>산업군:</strong> ${co.industry} | <strong>규모:</strong> ${co.size} | <strong>진단일:</strong> ${nowKr}</p>`;
+    diagBody+=`<h2>종합 진단 결과</h2><p><strong>ESG 종합:</strong> ${res.score}점 (${res.grade} ${res.label})<br/><strong>환경(E):</strong> ${res.eA}/5.0 | <strong>사회(S):</strong> ${res.sA}/5.0 | <strong>지배구조(G):</strong> ${res.gA}/5.0<br/><strong>우수문항:</strong> ${res.strong}개 | <strong>취약문항:</strong> ${res.weak}개</p>`;
     AREAS.forEach(a=>{
-      const v=a.id==="E"?res.eA:a.id==="S"?res.sA:res.gA;
-      const sc=Math.round(v*20);const g=getGrade(sc);
-      diagReport+=`\n[${a.label} (${a.eng}) - ${sc}점 ${g.grade}]\n`;
+      const v=a.id==="E"?res.eA:a.id==="S"?res.sA:res.gA;const sc=Math.round(v*20);const g=getGrade(sc);
+      diagBody+=`<h2>${a.icon} ${a.label} (${a.eng}) — ${sc}점 ${g.grade}</h2><table><tr><th>문항</th><th>질문</th><th>점수</th><th>등급</th><th>증빙</th></tr>`;
       QS.slice(a.range[0],a.range[1]).forEach((q,i)=>{
-        const s=res.adj[a.range[0]+i];diagReport+=`  ${q.c}: ${q.t} → ${Math.round(s*20)}점\n`;
+        const s=res.adj[a.range[0]+i];const s100=Math.round(s*20);const gi=getGrade(s100);
+        diagBody+=`<tr><td>${q.c}</td><td>${q.t}</td><td>${s100}</td><td>${gi.grade}</td><td>${ups[a.range[0]+i]?"✓":"-"}</td></tr>`;
       });
+      diagBody+=`</table>`;
     });
     const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
-    diagReport+=`\n[산업 특성]\n강점: ${indInfo.strength}\n약점: ${indInfo.weakness}\n권고: ${indInfo.tip}\n`;
-    zip.file(`${companyName}_ESG_자가진단_결과보고서_${now}.txt`,diagReport);
+    diagBody+=`<h2>📊 ${co.industry} 산업 특성</h2><p>강점: ${indInfo.strength}<br/>약점: ${indInfo.weakness}<br/>권고: ${indInfo.tip}</p>`;
+    diagBody+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미<br/>연락처: eunmiroh2023@hansung.ac.kr</p></div>`;
+    zip.file(`${cn}_ESG_자가진단_결과보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 자가진단 결과보고서`,diagBody));
 
-    // 2. AI 컨설팅 보고서
+    // 2. AI 컨설팅 보고서 (HTML/워드호환)
     if(report){
-      zip.file(`${companyName}_ESG_컨설팅_보고서_${now}.txt`,`${co.name} ESG 맞춤 컨설팅 보고서\n조건: ${condition} | 생성일: ${now}\n${"=".repeat(40)}\n\n${report}`);
+      let rptHtml=report.replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^# (.*$)/gm,'<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^- (.*$)/gm,'<li>$1</li>');
+      // 표 변환
+      rptHtml=rptHtml.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
+        const rows=match.trim().split("\n").filter(r=>r.trim());if(rows.length<2)return match;
+        const hdr=rows[0].split("|").filter(c=>c.trim());const drs=rows.slice(2);
+        let t=`<table><tr>`;hdr.forEach(h=>{t+=`<th>${h.trim()}</th>`;});t+=`</tr>`;
+        drs.forEach(r=>{const cells=r.split("|").filter(c=>c.trim());t+=`<tr>`;cells.forEach(c=>{t+=`<td>${c.trim()}</td>`;});t+=`</tr>`;});
+        return t+`</table>`;
+      });
+      rptHtml=rptHtml.replace(/\n/g,'<br/>');
+      rptHtml+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미<br/>연락처: eunmiroh2023@hansung.ac.kr<br/>출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사) · K-ESG 가이드라인 v2.0</p></div>`;
+      zip.file(`${cn}_ESG_컨설팅_보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 맞춤 컨설팅 보고서`,rptHtml));
     }
 
-    // 3. 증빙자료 생성물
+    // 3. 증빙자료 생성물 (HTML/워드호환, 개별 파일)
     if(generatedDocs.length>0){
       const docsFolder=zip.folder("증빙자료");
-      generatedDocs.forEach((d,i)=>{
-        docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.txt`,`${co.name} - ${d.title}\n문항: ${d.code} ${d.question}\n생성일: ${now}\n${"=".repeat(40)}\n\n${d.content}`);
+      generatedDocs.forEach(d=>{
+        let docBody=`<p><strong>기업명:</strong> ${co.name}<br/><strong>문항:</strong> ${d.code} — ${d.question}<br/><strong>생성일:</strong> ${nowKr}</p><hr/>`;
+        docBody+=d.content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+        docBody+=`<div class="footer"><p>본 문서는 중소기업중앙회 ESG 규정례 양식을 참고하여 AI가 작성한 초안입니다.</p></div>`;
+        docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.doc`,makeDocHtml(`${co.name} — ${d.title}`,docBody));
       });
     }
 
@@ -322,10 +347,10 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       const s=res.adj[i];const sc100=Math.round(s*20);const g=getGrade(sc100);
       csv+=`${q.c},"${q.t}",${q.a},${res.orig[i]},${s},${sc100},${g.grade},${ups[i]?"Y":"N"}\n`;
     });
-    zip.file(`${companyName}_문항별_점수_${now}.csv`,"\uFEFF"+csv);
+    zip.file(`${cn}_문항별_점수_${now}.csv`,"\uFEFF"+csv);
 
     const blob=await zip.generateAsync({type:"blob"});
-    saveAs(blob,`${companyName}_ESG_진단결과_${now}.zip`);
+    saveAs(blob,`${cn}_ESG_진단결과_${now}.zip`);
   };
 
   /* ═══ SHELL (not a component - just wrapping JSX) ═══ */
@@ -626,11 +651,47 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
               const isGov=title?.includes("지배구조")||title?.includes("G)");
               const sColor=isEnv?T.green:isSoc?T.blue:isGov?T.purple:T.accent;
               const sDim=isEnv?T.greenDim:isSoc?T.blueDim:isGov?T.purpleDim:T.accentDim;
-              return<div key={si} style={{background:sDim,borderRadius:10,padding:16,marginBottom:10,border:`1px solid ${sColor}22`}}>
-                <h4 style={{color:sColor,fontSize:15,fontWeight:700,marginBottom:8,paddingBottom:6,borderBottom:`1px solid ${sColor}33`}}>{title}</h4>
-                <div style={{fontSize:13,color:T.text,lineHeight:1.8}} dangerouslySetInnerHTML={{__html:body.replace(/^### (.*$)/gm,'<div style="color:#94a3b8;font-size:14px;font-weight:700;margin:12px 0 6px">$1</div>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:#e2e8f0">$1</strong>').replace(/^- (.*$)/gm,'<div style="padding:2px 0 2px 14px;position:relative"><span style="position:absolute;left:0;color:#64748b">·</span>$1</div>').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>')}}/>
+              // 마크다운 표를 HTML table로 변환
+              const renderMd=(md)=>{
+                let html=md;
+                // 표 변환
+                html=html.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
+                  const rows=match.trim().split("\n").filter(r=>r.trim());
+                  if(rows.length<2)return match;
+                  const hdr=rows[0].split("|").filter(c=>c.trim());
+                  const dataRows=rows.slice(2);
+                  let t=`<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:12px"><thead><tr>`;
+                  hdr.forEach(h=>{t+=`<th style="padding:6px 8px;background:${T.border};color:${T.text};border:1px solid ${T.borderLight};text-align:left;font-weight:600">${h.trim()}</th>`;});
+                  t+=`</tr></thead><tbody>`;
+                  dataRows.forEach(r=>{
+                    const cells=r.split("|").filter(c=>c.trim());
+                    t+=`<tr>`;cells.forEach(c=>{t+=`<td style="padding:5px 8px;border:1px solid ${T.border};color:${T.textSub}">${c.trim()}</td>`;});t+=`</tr>`;
+                  });
+                  return t+`</tbody></table>`;
+                });
+                html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:14px;font-weight:700;margin:14px 0 6px">$1</div>`);
+                html=html.replace(/\*\*(.*?)\*\*/g,`<strong style="color:${T.text}">$1</strong>`);
+                html=html.replace(/^- (.*$)/gm,`<div style="padding:3px 0 3px 16px;position:relative;line-height:1.7"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
+                html=html.replace(/\n\n/g,'<div style="height:8px"></div>');
+                html=html.replace(/\n/g,'<br/>');
+                return html;
+              };
+              return<div key={si} style={{background:sDim,borderRadius:10,padding:18,marginBottom:10,border:`1px solid ${sColor}22`}}>
+                <h4 style={{color:sColor,fontSize:15,fontWeight:700,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${sColor}33`}}>{title}</h4>
+                <div style={{fontSize:13,color:T.text,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:renderMd(body)}}/>
               </div>;
             })}
+            {/* 보고서 말미 */}
+            <div style={{marginTop:16,padding:16,background:T.bg,borderRadius:10,border:`1px solid ${T.border}`,fontSize:12,color:T.textSub,lineHeight:1.8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{color:T.accent,fontWeight:700}}>보고서 정보</span>
+                <span style={{color:T.textDim,fontSize:10}}>본 보고서는 AI 기반 분석 결과이며, 전문가 검토를 권고합니다.</span>
+              </div>
+              <div>보고서 작성일: {new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"})}</div>
+              <div>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미</div>
+              <div>연락처: eunmiroh2023@hansung.ac.kr</div>
+              <div style={{marginTop:4,fontSize:10,color:T.textDim}}>출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사) · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</div>
+            </div>
           </div>
         </div>}
       </div>}
@@ -665,4 +726,5 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
+
 
