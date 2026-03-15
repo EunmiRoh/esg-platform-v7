@@ -212,30 +212,31 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 - 동일 구조, 청탁금지법·공정거래법 등 관련 법규 명시
 
 ## 5. 증빙자료 보완 가이드
-- 미비 항목별 필요서류, 작성항목 체크리스트, 중소기업중앙회 ESG 규정례 양식 참조
+- 미비 항목별 필요서류, 작성항목을 간결한 체크리스트로 제시
 
 ## 6. 실행 로드맵
-- 표 형태: 시기(단기/중기/장기) | 과제 | 담당 | 예산 | KPI
-- 단기(0~6개월): 즉시 실행, 비용 최소
-- 중기(6~18개월): 시스템 구축, 인증 취득
-- 장기(18~36개월): 고도화, 외부 공시
+- 표: | 시기 | 과제 | 담당 | 완료기준(KPI) |
+- 단기(0~6개월) / 중기(6~18개월) / 장기(18~36개월)
 
-## 7. 기대효과
-- 등급 향상 시나리오 (현재 ${res.grade} → 1~2단계 상향 목표)
-- 정량적 기대효과: 법규 위반 과태료 절감, ESG 금융 혜택, 거래처 대응력
+## 7. 기대효과 및 정량 데이터 수집 안내
+- 등급 향상 시나리오 (현재 ${res.grade} → 목표)
+- 과태료 위험이 있는 항목은 해당 법규와 과태료 금액을 명시
+- ESG 평가 시 반영되는 정량실적 데이터 수집 방법 안내 (예: GHG 배출량은 에너지공단 TIPS에서 배출계수 확인, 산업재해율은 고용노동부 산업재해 통계에서 확인 등)
+- 각 데이터가 ESG 평가에서 어떻게 반영되는지 설명
 
 [작성 지침]
-- 한국어로 작성
-- ${co.industry} 산업 특성을 구체적으로 반영
-- 모든 제안에 관련 법규·인증·가이드라인 출처를 괄호 안에 명시 (예: (환경정책기본법 제2조), (K-ESG E-1-1))
-- 산업 내 상대 위치는 "출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사)"로 명시
-- 각 영역 개선과제는 반드시 다음 형식의 마크다운 표를 사용:
-| 문항 | 현황분석 | 법규위반 리스크 | 개선방안 | 필요서류 | 수치목표 | 기간 | 예상비용 |
-|------|----------|----------------|----------|----------|----------|------|----------|
-- 기간/비용 산출 근거는 각 표 아래에 ※ 주석으로 명시
-- 실행 로드맵도 표 형태로 작성: | 시기 | 과제 | 담당 | 예산 | KPI |
-- 불필요한 줄바꿈을 최소화하고 내용 밀도를 높이세요
-- 반드시 모든 섹션(1~7)을 빠짐없이 완성하세요. 중간에 끊기지 않도록 주의하세요.`;
+- 한국어로 작성, ${co.industry} 산업 특성 구체적 반영
+- 모든 제안에 관련 법규·인증·가이드라인 출처를 괄호 안에 명시
+- 산업 내 상대 위치 출처: "중소기업 ESG 자가진단 실증 분석"
+- 비용/예산 관련 내용은 포함하지 마세요. 중소기업은 예산이 제한적이므로 "무엇을 해야 하는가"에만 집중
+- 단, 법규 위반 시 과태료가 있는 항목은 과태료 금액과 위반 조건을 명시
+- 각 영역 개선과제는 반드시 마크다운 표 사용:
+| 문항 | 현황분석 | 법규위반 리스크(과태료) | 개선방안 | 필요서류 | 기간 |
+|------|----------|------------------------|----------|----------|------|
+- 실행 로드맵: | 시기 | 과제 | 담당 | 완료기준(KPI) |
+- 체크리스트는 □ 기호 없이 간결하게 나열
+- 불필요한 줄바꿈·빈줄을 최소화하고 내용 밀도를 높이세요
+- 반드시 모든 섹션(1~7)을 빠짐없이 완성. 중간에 끊기지 마세요.`;
 
     const startTime=Date.now();
     try{
@@ -289,7 +290,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   // ── ZIP 다운로드 ──
-  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:11pt;line-height:1.8;color:#222;max-width:210mm;margin:20mm auto;padding:0 15mm}h1{font-size:18pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:8px}h2{font-size:14pt;color:#2563eb;margin-top:20px;border-bottom:1px solid #ddd;padding-bottom:4px}h3{font-size:12pt;color:#7c3aed;margin-top:14px}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt}th{background:#f1f5f9;padding:6px 8px;border:1px solid #cbd5e1;font-weight:600;text-align:left}td{padding:5px 8px;border:1px solid #e2e8f0}.footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:9pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
+  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.5;color:#222;max-width:190mm;margin:15mm auto;padding:0 10mm}h1{font-size:16pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:6px;margin-bottom:12px}h2{font-size:13pt;color:#2563eb;margin-top:16px;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:3px}h3{font-size:11pt;color:#7c3aed;margin-top:10px;margin-bottom:4px}p{margin:4px 0}table{width:100%;border-collapse:collapse;margin:8px 0;font-size:9pt;table-layout:fixed;word-wrap:break-word}th{background:#f1f5f9;padding:4px 6px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:9pt}td{padding:3px 6px;border:1px solid #e2e8f0;font-size:9pt;vertical-align:top}li{margin:2px 0;padding:0}.footer{margin-top:20px;padding-top:8px;border-top:1px solid #ddd;font-size:8pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
 
   const downloadZip=async()=>{
     const zip=new JSZip();
@@ -311,7 +312,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     });
     const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
     diagBody+=`<h2>📊 ${co.industry} 산업 특성</h2><p>강점: ${indInfo.strength}<br/>약점: ${indInfo.weakness}<br/>권고: ${indInfo.tip}</p>`;
-    diagBody+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미<br/>연락처: eunmiroh2023@hansung.ac.kr</p></div>`;
+    diagBody+=`<div class="footer"><p>보고서 작성일: ${nowKr}</p></div>`;
     zip.file(`${cn}_ESG_자가진단_결과보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 자가진단 결과보고서`,diagBody));
 
     // 2. AI 컨설팅 보고서 (HTML/워드호환)
@@ -326,7 +327,9 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
         return t+`</table>`;
       });
       rptHtml=rptHtml.replace(/\n/g,'<br/>');
-      rptHtml+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미<br/>연락처: eunmiroh2023@hansung.ac.kr<br/>출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사) · K-ESG 가이드라인 v2.0</p></div>`;
+      rptHtml+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>출처: 중소기업 ESG 자가진단 실증 분석 · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</p></div>`;
+      // 제목 중복 제거: # 제목이 이미 makeDocHtml에서 <h1>으로 들어가므로 본문에서 첫 # 제거
+      rptHtml=rptHtml.replace(/^<h1>.*?<\/h1>(<br\/>)*/,'');
       zip.file(`${cn}_ESG_컨설팅_보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 맞춤 컨설팅 보고서`,rptHtml));
     }
 
@@ -671,14 +674,14 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
                 });
                 html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:14px;font-weight:700;margin:14px 0 6px">$1</div>`);
                 html=html.replace(/\*\*(.*?)\*\*/g,`<strong style="color:${T.text}">$1</strong>`);
-                html=html.replace(/^- (.*$)/gm,`<div style="padding:3px 0 3px 16px;position:relative;line-height:1.7"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
-                html=html.replace(/\n\n/g,'<div style="height:8px"></div>');
+                html=html.replace(/^- (.*$)/gm,`<div style="padding:1px 0 1px 16px;position:relative;line-height:1.5"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
+                html=html.replace(/\n\n/g,'<div style="height:4px"></div>');
                 html=html.replace(/\n/g,'<br/>');
                 return html;
               };
-              return<div key={si} style={{background:sDim,borderRadius:10,padding:18,marginBottom:10,border:`1px solid ${sColor}22`}}>
-                <h4 style={{color:sColor,fontSize:15,fontWeight:700,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${sColor}33`}}>{title}</h4>
-                <div style={{fontSize:13,color:T.text,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:renderMd(body)}}/>
+              return<div key={si} style={{background:sDim,borderRadius:10,padding:16,marginBottom:8,border:`1px solid ${sColor}22`}}>
+                <h4 style={{color:sColor,fontSize:15,fontWeight:700,marginBottom:8,paddingBottom:5,borderBottom:`1px solid ${sColor}33`}}>{title}</h4>
+                <div style={{fontSize:12,color:T.text,lineHeight:1.55}} dangerouslySetInnerHTML={{__html:renderMd(body)}}/>
               </div>;
             })}
             {/* 보고서 말미 */}
@@ -688,9 +691,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
                 <span style={{color:T.textDim,fontSize:10}}>본 보고서는 AI 기반 분석 결과이며, 전문가 검토를 권고합니다.</span>
               </div>
               <div>보고서 작성일: {new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"})}</div>
-              <div>컨설턴트: 한성대학교 스마트융합컨설팅학과 제품전공 박사과정 노은미</div>
-              <div>연락처: eunmiroh2023@hansung.ac.kr</div>
-              <div style={{marginTop:4,fontSize:10,color:T.textDim}}>출처: 중소기업 ESG 자가진단 실증 분석 (경기도 소재 공공기관, 300개사) · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</div>
+              <div style={{marginTop:4,fontSize:10,color:T.textDim}}>출처: 중소기업 ESG 자가진단 실증 분석 · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</div>
             </div>
           </div>
         </div>}
@@ -726,5 +727,6 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
+
 
 
