@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
   try {
-    const { prompt, max_tokens = 4000 } = req.body;
+    const { prompt, max_tokens = 8000 } = req.body;
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
