@@ -110,7 +110,6 @@ export default function App(){
   const[report,setReport]=useState(null);
   const[rptLoading,setRptLoading]=useState(false);
   const[helpIdx,setHelpIdx]=useState(null);
-  const[apiKey,setApiKey]=useState(()=>{ try{return localStorage.getItem("esg_api_key")||"";}catch{return "";} });
   const[isAdmin,setIsAdmin]=useState(false);
   const[showPw,setShowPw]=useState(false);
   const[pw,setPw]=useState("");
@@ -232,12 +231,11 @@ ${noEvDetail}
 모든 개선과제에 구체적 서류명, 양식 항목, 작성 예시를 포함하세요.`;
 
     try{
-      try{localStorage.setItem("esg_api_key",apiKey);}catch{}
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:prompt}]})});
+      const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:4000})});
       const d=await r.json();
-      if(d.error){setReport("API 오류: "+(d.error.message||JSON.stringify(d.error)));}
-      else{setReport(d.content?.map(c=>c.text||"").join("\n")||"응답 없음");}
-    }catch(e){setReport("API 호출 실패: "+e.message);}
+      if(d.error){setReport("오류: "+d.error);}
+      else{setReport(d.text||"응답 없음");}
+    }catch(e){setReport("서버 호출 실패: "+e.message);}
     setRptLoading(false);
   };
 
@@ -262,7 +260,7 @@ ${noEvDetail}
         </div>
       </div>
       {showPw&&!isAdmin&&<div style={{maxWidth:800,margin:"0 auto",padding:"8px 20px 12px",display:"flex",gap:6}}>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="비밀번호" onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{flex:1,padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:12,outline:"none"}}/>
+        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="비밀번호" autoComplete="off" spellCheck={false} onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)doLogin();}} style={{flex:1,padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:12,outline:"none"}}/>
         <button onClick={doLogin} style={{padding:"7px 14px",borderRadius:6,border:"none",background:T.accent,color:"#000",fontSize:12,fontWeight:600,cursor:"pointer"}}>확인</button>
       </div>}
     </nav>
@@ -486,19 +484,14 @@ ${noEvDetail}
 
       {/* CONSULTING */}
       {tab==="consult"&&<div>
-        <div style={{background:T.card,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${T.border}`}}>
-          <p style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:6}}>Anthropic API Key</p>
-          <input id="apiKeyInput" type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{width:"100%",padding:"9px 12px",borderRadius:7,border:`1px solid ${T.border}`,background:T.bg,color:T.text,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-          <p style={{fontSize:10,color:T.textDim,marginTop:4}}>console.anthropic.com 발급 키 입력 (브라우저에만 저장)</p>
-        </div>
         {isAdmin&&<div style={{background:T.card,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${T.border}`}}>
           <p style={{fontSize:11,color:T.accent,fontWeight:700,marginBottom:6}}>🔒 관리자: 조건 선택</p>
           <div style={{display:"flex",gap:6}}>
             {["Baseline","RAG","RAG_KG"].map(c=><span key={c} style={{flex:1,textAlign:"center",padding:"6px",borderRadius:6,border:`1px solid ${c==="RAG_KG"?T.accent:T.border}`,background:c==="RAG_KG"?T.accentDim:"transparent",color:c==="RAG_KG"?T.accent:T.textDim,fontSize:11,fontWeight:600}}>{c}{c==="RAG_KG"?" ✓":""}</span>)}
           </div>
         </div>}
-        <button onClick={()=>{if(!apiKey.trim()){document.getElementById("apiKeyInput")?.focus();return;}genReport();}} disabled={rptLoading||!apiKey.trim()} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:!apiKey.trim()?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading||!apiKey.trim()?"not-allowed":"pointer",marginBottom:16}}>
-          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":!apiKey.trim()?"⬆ API Key를 먼저 입력하세요":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"}
+        <button onClick={genReport} disabled={rptLoading} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16}}>
+          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"}
         </button>
         {report&&<div style={{background:T.card,borderRadius:14,padding:24,border:`1px solid ${T.border}`,animation:"fadeUp .5s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:14,marginBottom:16,borderBottom:`1px solid ${T.border}`}}>
