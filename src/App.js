@@ -355,7 +355,7 @@ ${noEvDetail}
           })}
           {/* 산업특성 */}
           <div style={{padding:14,background:T.accentDim,borderRadius:10,border:`1px solid ${T.accentBorder}`}}>
-            <p style={{color:T.accent,fontSize:13,fontWeight:700,marginBottom:6}}>📊 {co.industry} 산업 특성 (300개사 실증 분석 기반)</p>
+            <p style={{color:T.accent,fontSize:13,fontWeight:700,marginBottom:6}}>📊 {co.industry} 산업 특성</p>
             <p style={{color:T.textSub,fontSize:12,lineHeight:1.6}}>
               강점: {indInfo.strength}<br/>약점: {indInfo.weakness}<br/>권고: {indInfo.tip}
             </p>
@@ -417,7 +417,7 @@ ${noEvDetail}
       {tab==="consult"&&<div>
         <div style={{background:T.card,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${T.border}`}}>
           <p style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:6}}>Anthropic API Key</p>
-          <input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{width:"100%",padding:"9px 12px",borderRadius:7,border:`1px solid ${T.border}`,background:T.bg,color:T.text,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          <input id="apiKeyInput" type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{width:"100%",padding:"9px 12px",borderRadius:7,border:`1px solid ${T.border}`,background:T.bg,color:T.text,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           <p style={{fontSize:10,color:T.textDim,marginTop:4}}>console.anthropic.com 발급 키 입력 (브라우저에만 저장)</p>
         </div>
         {isAdmin&&<div style={{background:T.card,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${T.border}`}}>
@@ -426,8 +426,8 @@ ${noEvDetail}
             {["Baseline","RAG","RAG_KG"].map(c=><span key={c} style={{flex:1,textAlign:"center",padding:"6px",borderRadius:6,border:`1px solid ${c==="RAG_KG"?T.accent:T.border}`,background:c==="RAG_KG"?T.accentDim:"transparent",color:c==="RAG_KG"?T.accent:T.textDim,fontSize:11,fontWeight:600}}>{c}{c==="RAG_KG"?" ✓":""}</span>)}
           </div>
         </div>}
-        <button onClick={()=>{if(!apiKey.trim()){alert("API Key를 입력해주세요.");return;}genReport();}} disabled={rptLoading} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16}}>
-          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"}
+        <button onClick={()=>{if(!apiKey.trim()){document.getElementById("apiKeyInput")?.focus();return;}genReport();}} disabled={rptLoading||!apiKey.trim()} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:!apiKey.trim()?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading||!apiKey.trim()?"not-allowed":"pointer",marginBottom:16}}>
+          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":!apiKey.trim()?"⬆ API Key를 먼저 입력하세요":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"}
         </button>
         {report&&<div style={{background:T.card,borderRadius:14,padding:24,border:`1px solid ${T.border}`,animation:"fadeUp .5s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:14,marginBottom:16,borderBottom:`1px solid ${T.border}`}}>
