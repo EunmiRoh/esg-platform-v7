@@ -443,29 +443,33 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 
       {/* SUMMARY */}
       {tab==="summary"&&<div>
-        <div style={{background:T.card,borderRadius:16,padding:24,border:`1px solid ${T.border}`,textAlign:"center",marginBottom:16}}>
-          <p style={{color:T.textSub,fontSize:13,marginBottom:4}}>종합 진단 결과</p>
-          <Gauge value={res.score} color={res.color} label={res.label}/>
-          <span style={{display:"inline-block",background:res.color+"22",color:res.color,padding:"4px 14px",borderRadius:8,fontSize:12,fontWeight:700,marginTop:4}}>{res.label}</span>
-          <p style={{color:T.textSub,fontSize:13,marginTop:12,lineHeight:1.6,maxWidth:480,marginLeft:"auto",marginRight:"auto"}}>
-            {res.grade==="A"||res.grade==="B+"?`${co.name}은(는) ESG 경영이 ${res.label} 수준입니다.`:
-             res.grade==="B0"||res.grade==="B-"?`${co.name}은(는) ESG 경영 기반이 갖춰져 있으나 취약 ${res.weak}개 문항의 개선이 필요합니다.`:
-             `${co.name}은(는) ESG 경영 인식이 낮아 법규 위반 가능성이 상존합니다. 즉각적 조치가 필요합니다.`}
-          </p>
+        {/* 종합진단 + 레이더 나란히 */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          <div style={{background:T.card,borderRadius:16,padding:20,border:`1px solid ${T.border}`,textAlign:"center"}}>
+            <p style={{color:T.textSub,fontSize:13,marginBottom:4}}>종합 진단 결과</p>
+            <Gauge value={res.score} color={res.color} label={res.label}/>
+            <span style={{display:"inline-block",background:res.color+"22",color:res.color,padding:"4px 14px",borderRadius:8,fontSize:12,fontWeight:700,marginTop:4}}>{res.label}</span>
+          </div>
+          <div style={{background:T.card,borderRadius:16,padding:20,border:`1px solid ${T.border}`}}>
+            <p style={{color:T.text,fontSize:13,fontWeight:700,marginBottom:4,textAlign:"center"}}>영역별 균형</p>
+            <ResponsiveContainer width="100%" height={160}><RadarChart data={radarD}><PolarGrid stroke={T.border}/><PolarAngleAxis dataKey="a" tick={{fontSize:11,fill:T.textSub}}/><PolarRadiusAxis domain={[0,5]} tick={{fontSize:9,fill:T.textDim}}/><Radar dataKey="s" fill={T.accent} fillOpacity={.15} stroke={T.accent} strokeWidth={2}/></RadarChart></ResponsiveContainer>
+          </div>
         </div>
+        <p style={{color:T.textSub,fontSize:13,lineHeight:1.6,marginBottom:16,textAlign:"center"}}>
+          {res.grade==="A"||res.grade==="B+"?`${co.name}은(는) ESG 경영이 ${res.label} 수준입니다.`:
+           res.grade==="B0"||res.grade==="B-"?`${co.name}은(는) ESG 경영 기반이 갖춰져 있으나 취약 ${res.weak}개 문항의 개선이 필요합니다.`:
+           `${co.name}은(는) ESG 경영 인식이 낮아 법규 위반 가능성이 상존합니다. 즉각적 조치가 필요합니다.`}
+        </p>
+        {/* E/S/G 게이지 */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
           {AREAS.map(a=>{const v=a.id==="E"?res.eA:a.id==="S"?res.sA:res.gA;const sc=Math.round(v*20);const g=getGrade(sc);
             return<div key={a.id} style={{background:T.card,borderRadius:12,padding:14,border:`1px solid ${T.border}`,textAlign:"center"}}>
               <p style={{color:T.textSub,fontSize:11,marginBottom:2}}>{a.icon} {a.label}</p>
-              <Gauge value={sc} size={120} color={a.color} label={g.grade}/>
+              <Gauge value={sc} size={110} color={a.color} label={g.grade}/>
             </div>;
           })}
         </div>
-        <div style={{background:T.card,borderRadius:14,padding:20,border:`1px solid ${T.border}`,marginBottom:16}}>
-          <p style={{color:T.text,fontSize:14,fontWeight:700,marginBottom:8,textAlign:"center"}}>영역별 균형 분석</p>
-          <ResponsiveContainer width="100%" height={200}><RadarChart data={radarD}><PolarGrid stroke={T.border}/><PolarAngleAxis dataKey="a" tick={{fontSize:12,fill:T.textSub}}/><PolarRadiusAxis domain={[0,5]} tick={{fontSize:9,fill:T.textDim}}/><Radar dataKey="s" fill={T.accent} fillOpacity={.15} stroke={T.accent} strokeWidth={2}/></RadarChart></ResponsiveContainer>
-        </div>
-        {/* 종합분석 — E/S/G 영역별 */}
+        {/* 종합분석 바로 이어짐 */}
         <div style={{background:T.card,borderRadius:14,padding:20,border:`1px solid ${T.border}`,marginBottom:16}}>
           <h3 style={{color:T.text,fontSize:15,fontWeight:700,marginBottom:14}}>종합 분석</h3>
           {AREAS.map(a=>{const v=a.id==="E"?res.eA:a.id==="S"?res.sA:res.gA;const sc=Math.round(v*20);const wk=res.weakItems.filter(w=>w.a===a.id);const noEv=res.noEvidence.filter(w=>w.a===a.id);
@@ -579,15 +583,29 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
           <span style={{background:T.purpleDim,color:T.purple,padding:"3px 8px",borderRadius:5}}>응답: {tokenInfo.elapsed}초</span>
           <span style={{background:T.greenDim,color:T.green,padding:"3px 8px",borderRadius:5}}>효율: {tokenInfo.efficiency}</span>
         </div>}
-        {report&&<div style={{background:T.card,borderRadius:14,padding:24,border:`1px solid ${T.border}`,animation:"fadeUp .5s ease"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:14,marginBottom:16,borderBottom:`1px solid ${T.border}`}}>
-            <div>
-              <h3 style={{color:T.accent,fontSize:16,fontWeight:700}}>{co.name} ESG 맞춤 컨설팅 보고서</h3>
-              <p style={{color:T.textDim,fontSize:11,marginTop:2}}>{co.industry} · {res.grade} {res.label} · {condition} 기반</p>
+        {report&&<div style={{animation:"fadeUp .5s ease"}}>
+          <div style={{background:T.card,borderRadius:14,padding:20,border:`1px solid ${T.border}`,marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:12,marginBottom:12,borderBottom:`1px solid ${T.border}`}}>
+              <div>
+                <h3 style={{color:T.accent,fontSize:17,fontWeight:700}}>{co.name} ESG 맞춤 컨설팅 보고서</h3>
+                <p style={{color:T.textDim,fontSize:11,marginTop:2}}>{co.industry} · {res.grade} {res.label} · {condition} 기반</p>
+              </div>
+              <span style={{background:T.accentDim,color:T.accent,padding:"3px 10px",borderRadius:5,fontSize:10,fontWeight:600}}>AI Generated</span>
             </div>
-            <span style={{background:T.accentDim,color:T.accent,padding:"3px 10px",borderRadius:5,fontSize:10,fontWeight:600}}>AI Generated</span>
+            {/* 섹션별 카드로 분리 */}
+            {report.split(/^## /gm).filter(s=>s.trim()).map((section,si)=>{
+              const lines=section.split("\n");const title=lines[0]?.replace(/^#+\s*/,"").trim();const body=lines.slice(1).join("\n").trim();
+              const isEnv=title?.includes("환경")||title?.includes("E)");
+              const isSoc=title?.includes("사회")||title?.includes("S)");
+              const isGov=title?.includes("지배구조")||title?.includes("G)");
+              const sColor=isEnv?T.green:isSoc?T.blue:isGov?T.purple:T.accent;
+              const sDim=isEnv?T.greenDim:isSoc?T.blueDim:isGov?T.purpleDim:T.accentDim;
+              return<div key={si} style={{background:sDim,borderRadius:10,padding:16,marginBottom:10,border:`1px solid ${sColor}22`}}>
+                <h4 style={{color:sColor,fontSize:15,fontWeight:700,marginBottom:8,paddingBottom:6,borderBottom:`1px solid ${sColor}33`}}>{title}</h4>
+                <div style={{fontSize:13,color:T.text,lineHeight:1.8}} dangerouslySetInnerHTML={{__html:body.replace(/^### (.*$)/gm,'<div style="color:#94a3b8;font-size:14px;font-weight:700;margin:12px 0 6px">$1</div>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:#e2e8f0">$1</strong>').replace(/^- (.*$)/gm,'<div style="padding:2px 0 2px 14px;position:relative"><span style="position:absolute;left:0;color:#64748b">·</span>$1</div>').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>')}}/>
+              </div>;
+            })}
           </div>
-          <div style={{fontSize:14,color:T.text,lineHeight:1.85}} dangerouslySetInnerHTML={{__html:report.replace(/^### (.*$)/gm,'<h4 style="color:#34d399;font-size:15px;font-weight:700;margin:16px 0 8px">$1</h4>').replace(/^## (.*$)/gm,'<h3 style="color:#60a5fa;font-size:17px;font-weight:700;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #1e3044">$1</h3>').replace(/^# (.*$)/gm,'<h2 style="color:#34d399;font-size:20px;font-weight:800;margin:0 0 16px">$1</h2>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:#e2e8f0">$1</strong>').replace(/^- (.*$)/gm,'<div style="padding:2px 0 2px 16px;position:relative"><span style="position:absolute;left:0;color:#64748b">·</span>$1</div>').replace(/\n/g,'<br/>')}}/>
         </div>}
       </div>}
 
