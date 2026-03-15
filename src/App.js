@@ -246,6 +246,8 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 | 시기 | 과제 | 담당 | 완료기준(KPI) |
 |------|------|------|--------------|
 - ### 이나 *** 기호는 최소화. 소제목은 간결하게
+- [ ] 체크박스 기호 사용 금지. 목록은 - 로만 나열
+- 임의로 생성한 예시 데이터(연락처, 이메일 등)는 "(예시)" 표기
 - 줄바꿈·빈줄 최소화. 내용 밀도 극대화
 - 반드시 모든 섹션(1~7) 완성. 절대 중간에 끊기지 마세요.`;
 
@@ -284,20 +286,27 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
         const prompt=`"${co.name}" (${co.industry}, ${co.size})의 ESG 자가진단에서 "${w.c}: ${w.t}" 항목이 취약(${w.orig}점)으로 나왔습니다.
 이 항목의 증빙으로 제출할 수 있는 "${w.docs[0]}" 문서를 작성해주세요.
 
-[작성 기준]
-- 중소기업중앙회 ESG 규정례 양식 준수
-- 기업명 "${co.name}"으로 작성
-- 작성자/담당자 이름은 "○○○"으로 표기
-- 관련법규: ${w.law}
-- K-ESG 가이드: ${w.guide}
-- 작성가이드: ${w.template}
-- 수치 데이터는 반드시 마크다운 표 형식 사용. 표의 열 수를 일정하게 유지
-- 서식 헤더, 작성일자(${new Date().toISOString().slice(0,10)}), 승인란(작성: ○○○ / 검토: ○○○ / 승인: ○○○) 포함
-- 데이터 출처가 있으면 문서 하단에 "출처:" 로 명시
-- 관련 온라인 교육/참고 사이트가 있으면 안내 (예: 안전보건공단 교육 https://www.kosha.or.kr, 환경부 교육 등)
-- ### 이나 *** 기호는 사용하지 마세요. 제목은 번호로만 구분 (1. 2. 3.)
-- 별첨이 필요한 경우 문서 끝에 "[별첨] 양식명" 형태로 양식 틀을 작성
-- 내용이 잘리지 않도록 완전한 문서로 작성하세요.`;
+[필수 작성 규칙]
+1. 기업명 "${co.name}", 작성자/담당자/성명란은 모두 "○○○" 표기
+2. 연락처/이메일 등 임의 데이터는 반드시 "(예시)" 표기
+3. 수치 데이터는 반드시 마크다운 표 사용. 열 수 일정하게 유지
+4. 제목에 # ## ### 사용 금지. 번호(1. 2. 3.)로만 구분
+5. *** --- 수평선 사용 금지
+6. [ ] 체크박스 기호 사용 금지
+7. 승인란은 반드시 이 형식:
+| 구분 | 성명 | 서명 | 일자 |
+|------|------|------|------|
+| 작성 | ○○○ | (서명) | ${new Date().toISOString().slice(0,10)} |
+| 검토 | ○○○ | (서명) | |
+| 승인 | ○○○ | (서명) | |
+8. 제목 바로 다음 줄에 관련 표/내용 시작. 제목과 내용 사이에 빈줄 넣지 마세요
+9. 표 끝나고 다음 제목 사이에는 빈줄 1개
+10. 데이터 수집 출처와 프로세스를 문서 하단에 명시 (어디서 → 무엇을 → 어떻게)
+11. 관련 온라인 교육/참고 URL이 있으면 안내
+12. 관련법규: ${w.law} | K-ESG: ${w.guide}
+13. 작성가이드: ${w.template}
+14. 별첨 필요시 문서 끝에 "[별첨] 양식명" 형태로 작성
+15. 내용이 잘리지 않도록 반드시 완전한 문서로 작성하세요.`;
         const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:3000})});
         const d=await r.json();
         docs.push({code:w.c,title:w.docs[0],content:d.text||"생성 실패",question:w.t});
@@ -307,7 +316,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   // ── ZIP 다운로드 ──
-  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.35;color:#222;max-width:185mm;margin:15mm auto;padding:0 10mm}h1{font-size:15pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:5px;margin-bottom:8px}h2{font-size:12pt;color:#2563eb;margin-top:10px;margin-bottom:2px;border-bottom:1px solid #ddd;padding-bottom:2px}h3{font-size:10.5pt;color:#7c3aed;margin-top:6px;margin-bottom:1px}p{margin:1px 0;line-height:1.35}table{width:100%;border-collapse:collapse;margin:2px 0 6px 0;font-size:8.5pt;table-layout:auto}th{background:#f1f5f9;padding:3px 4px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:8pt;white-space:nowrap}td{padding:2px 4px;border:1px solid #e2e8f0;font-size:8pt;vertical-align:top}li{margin:0;padding:0;line-height:1.3}br{line-height:0.6}.footer{margin-top:12px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
+  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.3;color:#222;max-width:185mm;margin:15mm auto;padding:0 10mm}h1{font-size:15pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:5px;margin:0 0 8px 0}h2{font-size:12pt;color:#2563eb;margin:12px 0 1px 0;border-bottom:1px solid #ddd;padding-bottom:2px}h3{font-size:10.5pt;color:#7c3aed;margin:8px 0 0 0}p{margin:1px 0;line-height:1.3}table{width:100%;border-collapse:collapse;margin:1px 0 8px 0;font-size:8.5pt;table-layout:auto}th{background:#f1f5f9;padding:3px 4px;border:1px solid #cbd5e1;font-weight:600;text-align:center;font-size:8pt}td{padding:2px 4px;border:1px solid #e2e8f0;font-size:8pt;vertical-align:top;text-align:left}li{margin:0;padding:0;line-height:1.25}br{line-height:0.5}.footer{margin-top:12px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
 
   const downloadZip=async()=>{
     const zip=new JSZip();
@@ -364,7 +373,17 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
         let docBody=`<p><strong>기업명:</strong> ${co.name}<br/><strong>문항:</strong> ${d.code} — ${d.question}<br/><strong>생성일:</strong> ${nowKr}</p><hr/>`;
         let content=d.content;
         content=mdTableToHtml(content);
-        content=content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^- (.*$)/gm,'<li>$1</li>').replace(/\n/g,'<br/>');
+        // ### → h3, ## → h2 변환 (남아있을 경우)
+        content=content.replace(/^### (.*$)/gm,'<h3>$1</h3>');
+        content=content.replace(/^## (.*$)/gm,'<h2>$1</h2>');
+        content=content.replace(/^# (.*$)/gm,'<h2>$1</h2>');
+        // \*\*\* 수평선 제거
+        content=content.replace(/^\*\*\*$/gm,'');
+        content=content.replace(/^---$/gm,'');
+        content=content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+        content=content.replace(/^- (.*$)/gm,'<li style="margin:0;line-height:1.25">$1</li>');
+        content=content.replace(/\n\n/g,'<br/>');
+        content=content.replace(/\n/g,'');
         docBody+=content;
         docBody+=`<div class="footer"><p>본 문서는 중소기업중앙회 ESG 규정례 양식을 참고하여 AI가 작성한 초안입니다.</p></div>`;
         docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.doc`,makeDocHtml(`${co.name} — ${d.title}`,docBody));
