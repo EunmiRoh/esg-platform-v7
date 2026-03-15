@@ -111,6 +111,7 @@ export default function App(){
   const[tab,setTab]=useState("summary");
   const[report,setReport]=useState(null);
   const[rptLoading,setRptLoading]=useState(false);
+  const[rptProgress,setRptProgress]=useState(0);
   const[helpIdx,setHelpIdx]=useState(null);
   const[condition,setCondition]=useState("RAG_KG");
   const[tokenInfo,setTokenInfo]=useState(null);
@@ -176,7 +177,8 @@ export default function App(){
   const COND_VER="v7";
   const genReport=async(cond)=>{
     const useCondition=cond||condition;
-    if(!res)return;setRptLoading(true);setReport(null);setTokenInfo(null);
+    if(!res)return;setRptLoading(true);setReport(null);setTokenInfo(null);setRptProgress(0);
+    const progressInterval=setInterval(()=>setRptProgress(p=>Math.min(p+Math.random()*8,95)),2000);
     const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
     const weakByArea=AREAS.map(a=>({...a,items:res.weakItems.filter(w=>w.a===a.id)}));
     const noEvByArea=AREAS.map(a=>({...a,items:res.noEvidence.filter(w=>w.a===a.id)}));
@@ -246,6 +248,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 | 시기 | 과제 | 담당 | 완료기준(KPI) |
 |------|------|------|--------------|
 - ### 이나 *** 기호는 최소화. 소제목은 간결하게
+- 임원 현황은 "법인등기부등본"에서 확인 (사업자등록증이 아님)
 - [ ] 체크박스 기호 사용 금지. 목록은 - 로만 나열
 - 임의로 생성한 예시 데이터(연락처, 이메일 등)는 "(예시)" 표기
 - 줄바꿈·빈줄 최소화. 내용 밀도 극대화
@@ -267,21 +270,24 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
         setRptByCondition(prev=>({...prev,[useCondition]:{text:txt,tokenIn:estTokenIn,tokenOut:estTokenOut,elapsed}}));
       }
     }catch(e){setReport("서버 호출 실패: "+e.message);}
-    setRptLoading(false);
+    clearInterval(progressInterval);setRptProgress(100);
+    setTimeout(()=>setRptLoading(false),500);
   };
 
   const printReport=()=>window.print();
 
   // ── 증빙자료 생성 ──
   const[docLoading,setDocLoading]=useState(false);
+  const[docProgress,setDocProgress]=useState("");
   const[generatedDocs,setGeneratedDocs]=useState([]);
 
   const generateEvidence=async()=>{
     if(!res)return;setDocLoading(true);setGeneratedDocs([]);
     const weakNeedDocs=res.weakItems.filter(w=>!w.hasEv).slice(0,5);
     if(weakNeedDocs.length===0){alert("증빙 미비 취약문항이 없습니다.");setDocLoading(false);return;}
-    const docs=[];
+    const docs=[];let di=0;
     for(const w of weakNeedDocs){
+      di++;setDocProgress(`${di}/${weakNeedDocs.length} — ${w.docs[0]}`);
       try{
         const prompt=`"${co.name}" (${co.industry}, ${co.size})의 ESG 자가진단에서 "${w.c}: ${w.t}" 항목이 취약(${w.orig}점)으로 나왔습니다.
 이 항목의 증빙으로 제출할 수 있는 "${w.docs[0]}" 문서를 작성해주세요.
@@ -328,17 +334,16 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     return t+`</table>`;
   });
 
-  // 일반 모드: PDF (브라우저 인쇄)
-  const downloadPdf=()=>window.print();
-
-  // 관리자 모드: ZIP (워드+CSV+증빙)
-  const downloadAdminZip=async()=>{
+  // 일반: PDF스타일 HTML + 증빙(워드) → ZIP (CSV 제외)
+  // 관리자: 워드 + CSV + 증빙 → ZIP
+  const downloadResult=async()=>{
     const zip=new JSZip();
     const cn=co.name.replace(/[^가-힣a-zA-Z0-9]/g,"_");
     const now=new Date().toISOString().slice(0,10);
     const nowKr=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"});
+    const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
 
-    // 1. 자가진단 결과 보고서 (워드)
+    // 자가진단 보고서 HTML 생성
     let diagBody=`<p><strong>기업명:</strong> ${co.name} | <strong>산업군:</strong> ${co.industry} | <strong>규모:</strong> ${co.size} | <strong>진단일:</strong> ${nowKr}</p>`;
     diagBody+=`<h2>종합 진단 결과</h2><p><strong>ESG 종합:</strong> ${res.score}점 (${res.grade} ${res.label})<br/><strong>환경(E):</strong> ${res.eA}/5.0 | <strong>사회(S):</strong> ${res.sA}/5.0 | <strong>지배구조(G):</strong> ${res.gA}/5.0<br/><strong>우수문항:</strong> ${res.strong}개 | <strong>취약문항:</strong> ${res.weak}개</p>`;
     AREAS.forEach(a=>{
@@ -350,22 +355,23 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       });
       diagBody+=`</table>`;
     });
-    const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
     diagBody+=`<h2>📊 ${co.industry} 산업 특성</h2><p>강점: ${indInfo.strength}<br/>약점: ${indInfo.weakness}<br/>권고: ${indInfo.tip}</p>`;
     diagBody+=`<div class="footer"><p>보고서 작성일: ${nowKr}</p></div>`;
-    zip.file(`${cn}_ESG_자가진단_결과보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 자가진단 결과보고서`,diagBody));
 
-    // 2. 컨설팅 보고서 (워드)
+    const fileExt=isAdmin?"doc":"html"; // 일반=html(PDF인쇄용), 관리자=doc(워드)
+    zip.file(`${cn}_ESG_자가진단_결과보고서_${now}.${fileExt}`,makeDocHtml(`${co.name} ESG 자가진단 결과보고서`,diagBody));
+
+    // 컨설팅 보고서
     if(report){
       let rptHtml=report.replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^# (.*$)/gm,'<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^- (.*$)/gm,'<li>$1</li>');
       rptHtml=mdTableToHtml(rptHtml);
       rptHtml=rptHtml.replace(/\n/g,'<br/>');
       rptHtml+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>출처: 중소기업 ESG 자가진단 실증 분석 · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</p></div>`;
       rptHtml=rptHtml.replace(/^<h1>.*?<\/h1>(<br\/>)*/,'');
-      zip.file(`${cn}_ESG_컨설팅_보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 맞춤 컨설팅 보고서`,rptHtml));
+      zip.file(`${cn}_ESG_컨설팅_보고서_${now}.${fileExt}`,makeDocHtml(`${co.name} ESG 맞춤 컨설팅 보고서`,rptHtml));
     }
 
-    // 3. 증빙자료 (워드 개별파일)
+    // 증빙자료 (둘 다 워드)
     if(generatedDocs.length>0){
       const docsFolder=zip.folder("증빙자료");
       generatedDocs.forEach(d=>{
@@ -383,13 +389,15 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       });
     }
 
-    // 4. 문항별 점수 CSV
-    let csv="문항코드,문항내용,영역,원점수,보정점수,100점환산,등급,증빙유무\n";
-    QS.forEach((q,i)=>{
-      const s=res.adj[i];const sc100=Math.round(s*20);const g=getGrade(sc100);
-      csv+=`${q.c},"${q.t}",${q.a},${res.orig[i]},${s},${sc100},${g.grade},${ups[i]?"Y":"N"}\n`;
-    });
-    zip.file(`${cn}_문항별_점수_${now}.csv`,"\uFEFF"+csv);
+    // CSV (관리자만)
+    if(isAdmin){
+      let csv="문항코드,문항내용,영역,원점수,보정점수,100점환산,등급,증빙유무\n";
+      QS.forEach((q,i)=>{
+        const s=res.adj[i];const sc100=Math.round(s*20);const g=getGrade(sc100);
+        csv+=`${q.c},"${q.t}",${q.a},${res.orig[i]},${s},${sc100},${g.grade},${ups[i]?"Y":"N"}\n`;
+      });
+      zip.file(`${cn}_문항별_점수_${now}.csv`,"\uFEFF"+csv);
+    }
 
     const blob=await zip.generateAsync({type:"blob"});
     saveAs(blob,`${cn}_ESG_진단결과_${now}.zip`);
@@ -667,8 +675,11 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
             </div>)}
           </div>}
         </div>}
-        <button onClick={()=>genReport()} disabled={rptLoading} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16}}>
-          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"+(isAdmin?" ("+condition+")":"")}
+        <button onClick={()=>genReport()} disabled={rptLoading} style={{width:"100%",padding:rptLoading?"0":"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16,overflow:"hidden",position:"relative"}}>
+          {rptLoading?<div>
+            <div style={{padding:"14px 0 4px",fontSize:14}}>⏳ 보고서 생성 중... {Math.round(rptProgress)}%</div>
+            <div style={{height:4,background:"rgba(255,255,255,.15)",borderRadius:2}}><div style={{height:4,background:"#34d399",borderRadius:2,width:`${rptProgress}%`,transition:"width .5s"}}/></div>
+          </div>:"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"+(isAdmin?" ("+condition+")":"")}
         </button>
         {tokenInfo&&<div style={{display:"flex",gap:8,marginBottom:12,fontSize:11}}>
           <span style={{background:T.accentDim,color:T.accent,padding:"3px 8px",borderRadius:5}}>조건: {tokenInfo.condition}</span>
@@ -743,7 +754,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
           <h4 style={{color:T.accent,fontSize:15,fontWeight:700,marginBottom:10}}>📋 증빙자료 자동 생성</h4>
           <p style={{color:T.textSub,fontSize:12,marginBottom:12}}>취약 문항 중 증빙 미비 항목의 서류를 AI가 작성합니다. ({res.weakItems.filter(w=>!w.hasEv).length}건 대상)</p>
           <button onClick={generateEvidence} disabled={docLoading} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:docLoading?T.textDim:T.blue,color:"#fff",fontSize:14,fontWeight:700,cursor:docLoading?"wait":"pointer",marginBottom:12}}>
-            {docLoading?"⏳ 증빙자료 생성 중...":"📄 증빙자료 일괄 생성 ("+res.weakItems.filter(w=>!w.hasEv).slice(0,5).length+"건)"}
+            {docLoading?`⏳ 생성 중: ${docProgress}`:"📄 증빙자료 일괄 생성 ("+res.weakItems.filter(w=>!w.hasEv).slice(0,5).length+"건)"}
           </button>
           {generatedDocs.length>0&&<div>
             {generatedDocs.map((d,i)=><div key={i} style={{background:T.bg,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${T.border}`}}>
@@ -761,11 +772,12 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:20}} data-np>
         <button onClick={reset} style={{padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontSize:14,fontWeight:600,cursor:"pointer"}}>새로 진단</button>
         <button onClick={()=>setTab("consult")} style={{padding:"13px",borderRadius:10,border:"none",background:T.accent,color:"#000",fontSize:14,fontWeight:700,cursor:"pointer"}}>컨설팅</button>
-        <button onClick={isAdmin?downloadAdminZip:downloadPdf} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>{isAdmin?"📦 ZIP 다운로드":"🖨 PDF 저장"}</button>
+        <button onClick={downloadResult} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>📦 결과 다운로드</button>
       </div>
     </div>);
   }
   return null;
 }
+
 
 
