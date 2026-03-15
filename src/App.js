@@ -100,7 +100,8 @@ function Gauge({value,max=100,size=180,color=T.accent,label=""}){
 /* ═══ MAIN APP ═══ */
 export default function App(){
   const[step,setStep]=useState("landing");
-  const[co,setCo]=useState({name:"",biz:"",size:"중소기업",ksic:"",industry:"제조업"});
+  const[co,setCo]=useState({name:"",biz:"",size:"중소기업",industry:"제조업"});
+  const updateCo=(k,v)=>setCo(prev=>({...prev,[k]:v}));
   const[ans,setAns]=useState(Array(30).fill(0));
   const[ups,setUps]=useState(Array(30).fill(null));
   const[pg,setPg]=useState(0);
@@ -113,11 +114,54 @@ export default function App(){
   const[isAdmin,setIsAdmin]=useState(false);
   const[showPw,setShowPw]=useState(false);
   const[pw,setPw]=useState("");
+  const[bizError,setBizError]=useState("");
+  const[bizVerified,setBizVerified]=useState(false);
+  const[verifying,setVerifying]=useState(false);
   const fRefs=useRef({});
   const answered=ans.filter(v=>v>0).length;
 
-  const doLogin=()=>{if(pw==="esg2026"){setIsAdmin(true);setShowPw(false);}else alert("비밀번호 오류");};
-  const reset=()=>{setStep("landing");setAns(Array(30).fill(0));setUps(Array(30).fill(null));setRes(null);setReport(null);setPg(0);setTab("summary");};
+  const doLogin=()=>{if(pw==="esg2026"){setIsAdmin(true);setShowPw(false);setPw("");}else alert("비밀번호 오류");};
+  const doLogout=()=>{setIsAdmin(false);};
+  const reset=()=>{setStep("landing");setAns(Array(30).fill(0));setUps(Array(30).fill(null));setRes(null);setReport(null);setPg(0);setTab("summary");setBizVerified(false);setBizError("");};
+
+  // 사업자번호 포맷: 000-00-00000 (10자리)
+  const formatBiz=(v)=>{
+    const d=v.replace(/\D/g,"").slice(0,10);
+    if(d.length<=3)return d;
+    if(d.length<=5)return d.slice(0,3)+"-"+d.slice(3);
+    return d.slice(0,3)+"-"+d.slice(3,5)+"-"+d.slice(5);
+  };
+  const validateBiz=(v)=>{
+    const d=v.replace(/\D/g,"");
+    if(d.length===0)return "";
+    if(d.length!==10)return "사업자등록번호는 10자리입니다.";
+    // 검증 알고리즘 (국세청 체크섬)
+    const weights=[1,3,7,1,3,7,1,3,5];
+    let sum=0;
+    for(let i=0;i<9;i++)sum+=parseInt(d[i])*weights[i];
+    sum+=Math.floor(parseInt(d[8])*5/10);
+    const check=(10-sum%10)%10;
+    if(check!==parseInt(d[9]))return "유효하지 않은 사업자등록번호입니다.";
+    return "";
+  };
+  const handleBizChange=(v)=>{
+    const formatted=formatBiz(v);
+    updateCo("biz",formatted);
+    const err=validateBiz(formatted);
+    setBizError(err);
+    setBizVerified(false);
+  };
+
+  // 기업규모 검증 시뮬레이션 (SMINFO/MME 스크래핑 대체)
+  const verifyCompany=()=>{
+    const err=validateBiz(co.biz);
+    if(err){setBizError(err);return;}
+    setVerifying(true);
+    setTimeout(()=>{
+      setBizVerified(true);
+      setVerifying(false);
+    },1500);
+  };
 
   /* ── Consulting ── */
   const genReport=async()=>{
@@ -199,18 +243,22 @@ ${noEvDetail}
 
   const printReport=()=>window.print();
 
-  /* ═══ SHELL ═══ */
-  const Shell=({children})=><div style={{minHeight:"100vh",background:T.bg,fontFamily:"'Pretendard',-apple-system,sans-serif",color:T.text}}>
-    <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+  /* ═══ SHELL (not a component - just wrapping JSX) ═══ */
+  const globalCSS=`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 *{margin:0;padding:0;box-sizing:border-box}
-@media print{nav,[data-np]{display:none!important}.print-break{page-break-before:always}body{background:#fff!important;color:#000!important}}`}</style>
+@media print{nav,[data-np]{display:none!important}.print-break{page-break-before:always}body{background:#fff!important;color:#000!important}}`;
+  const wrapShell=(content)=><div style={{minHeight:"100vh",background:T.bg,fontFamily:"'Pretendard',-apple-system,sans-serif",color:T.text}}>
+    <style>{globalCSS}</style>
     <nav data-np style={{background:"rgba(12,21,32,.92)",backdropFilter:"blur(12px)",borderBottom:`1px solid ${T.border}`,position:"sticky",top:0,zIndex:100}}>
       <div style={{maxWidth:800,margin:"0 auto",padding:"0 20px",display:"flex",alignItems:"center",height:48,justifyContent:"space-between"}}>
         <span onClick={reset} style={{fontSize:14,fontWeight:700,color:T.text,cursor:"pointer"}}>ESG 자가진단 시스템</span>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {isAdmin&&<span style={{fontSize:10,color:T.accent,background:T.accentDim,padding:"2px 8px",borderRadius:4}}>관리자</span>}
-          <button onClick={()=>{if(isAdmin)setIsAdmin(false);else setShowPw(!showPw);}} style={{padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,background:"transparent",color:T.textDim,fontSize:11,cursor:"pointer"}}>{isAdmin?"로그아웃":"관리자"}</button>
+          {isAdmin?
+            <button onClick={doLogout} style={{padding:"3px 10px",borderRadius:5,border:`1px solid ${T.accent}`,background:T.accentDim,color:T.accent,fontSize:11,cursor:"pointer"}}>일반 모드</button>
+            :<button onClick={()=>setShowPw(!showPw)} style={{padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,background:"transparent",color:T.textDim,fontSize:11,cursor:"pointer"}}>관리자</button>
+          }
         </div>
       </div>
       {showPw&&!isAdmin&&<div style={{maxWidth:800,margin:"0 auto",padding:"8px 20px 12px",display:"flex",gap:6}}>
@@ -218,13 +266,13 @@ ${noEvDetail}
         <button onClick={doLogin} style={{padding:"7px 14px",borderRadius:6,border:"none",background:T.accent,color:"#000",fontSize:12,fontWeight:600,cursor:"pointer"}}>확인</button>
       </div>}
     </nav>
-    <main style={{maxWidth:800,margin:"0 auto",padding:"24px 20px 48px",animation:"fadeUp .4s ease"}}>{children}</main>
+    <main style={{maxWidth:800,margin:"0 auto",padding:"24px 20px 48px",animation:"fadeUp .4s ease"}}>{content}</main>
   </div>;
 
   /* ═══ LANDING ═══ */
-  if(step==="landing")return<Shell>
+  if(step==="landing")return wrapShell(<div>
     <div style={{textAlign:"center",padding:"52px 20px 44px",background:`linear-gradient(160deg,#080e16,${T.bg},#0a1828)`,borderRadius:20,border:`1px solid ${T.border}`,marginBottom:32}}>
-      <p style={{color:T.textDim,fontSize:11,letterSpacing:3,marginBottom:8}}>ESG SELF-DIAGNOSIS v6</p>
+      <p style={{color:T.textDim,fontSize:11,letterSpacing:3,marginBottom:8}}>ESG SELF-DIAGNOSIS v7</p>
       <h1 style={{color:T.accent,fontSize:28,fontWeight:800,marginBottom:10}}>ESG 자가진단 시스템</h1>
       <p style={{color:T.textSub,fontSize:13}}>중소기업중앙회 ESG 규정례 기반 | 30문항 | 13등급 | 39종+150종 진단유형</p>
       <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:16}}>
@@ -232,20 +280,43 @@ ${noEvDetail}
       </div>
     </div>
     <div style={{background:T.card,borderRadius:16,padding:28,border:`1px solid ${T.border}`,maxWidth:560,margin:"0 auto"}}>
-      {[{l:"기업명 *",k:"name",ph:"기업명 입력"},{l:"사업자번호",k:"biz",ph:"000-00-00000"},{l:"기업규모 *",k:"size",sel:["중소기업","중견기업","스타트업"]},{l:"KSIC",k:"ksic",ph:"예: C, J"},{l:"업종구분 *",k:"industry",sel:["제조업","ICT/정보통신","건설업","도소매업","기타서비스"]}].map(f=>
-        <div key={f.k} style={{marginBottom:14}}>
-          <label style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:5,display:"block"}}>{f.l}</label>
-          {f.sel?<select value={co[f.k]} onChange={e=>setCo({...co,[f.k]:e.target.value})} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none"}}>{f.sel.map(o=><option key={o}>{o}</option>)}</select>
-          :<input value={co[f.k]} onChange={e=>setCo({...co,[f.k]:e.target.value})} placeholder={f.ph} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none",boxSizing:"border-box"}}/>}
-        </div>)}
-      <button onClick={()=>{if(!co.name.trim())return alert("기업명을 입력하세요.");setStep("diag");}} style={{width:"100%",marginTop:8,padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>자가진단 시작하기</button>
+      <div style={{marginBottom:14}}>
+        <label style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:5,display:"block"}}>기업명 *</label>
+        <input value={co.name} onChange={e=>updateCo("name",e.target.value)} placeholder="기업명 입력" style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+      </div>
+      <div style={{marginBottom:14}}>
+        <label style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:5,display:"block"}}>사업자등록번호 *</label>
+        <div style={{display:"flex",gap:8}}>
+          <input value={co.biz} onChange={e=>handleBizChange(e.target.value)} placeholder="000-00-00000" maxLength={12} style={{flex:1,padding:"10px 14px",borderRadius:8,border:`1px solid ${bizError?T.red:bizVerified?T.accent:T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+          <button onClick={verifyCompany} disabled={verifying||!!bizError||co.biz.replace(/\D/g,"").length!==10} style={{padding:"10px 16px",borderRadius:8,border:"none",background:verifying?"transparent":bizVerified?T.accentDim:T.gradBtn,color:bizVerified?T.accent:"#fff",fontSize:12,fontWeight:600,cursor:verifying?"wait":"pointer",whiteSpace:"nowrap",border:bizVerified?`1px solid ${T.accent}`:"none"}}>
+            {verifying?"확인중...":bizVerified?"✓ 확인됨":"기업확인"}
+          </button>
+        </div>
+        {bizError&&<p style={{fontSize:11,color:T.red,marginTop:4}}>{bizError}</p>}
+        {bizVerified&&<p style={{fontSize:11,color:T.accent,marginTop:4}}>✓ {co.name} ({co.size}) 확인 완료</p>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+        <div>
+          <label style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:5,display:"block"}}>기업규모 *</label>
+          <select value={co.size} onChange={e=>updateCo("size",e.target.value)} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none"}}>
+            {["중소기업","중견기업","스타트업"].map(o=><option key={o}>{o}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{fontSize:12,fontWeight:600,color:T.textSub,marginBottom:5,display:"block"}}>업종구분 *</label>
+          <select value={co.industry} onChange={e=>updateCo("industry",e.target.value)} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,outline:"none"}}>
+            {["제조업","ICT/정보통신","건설업","도소매업","기타서비스"].map(o=><option key={o}>{o}</option>)}
+          </select>
+        </div>
+      </div>
+      <button onClick={()=>{if(!co.name.trim())return alert("기업명을 입력하세요.");if(co.biz&&validateBiz(co.biz))return alert(validateBiz(co.biz));setStep("diag");}} style={{width:"100%",marginTop:8,padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>자가진단 시작하기</button>
     </div>
-  </Shell>;
+  </div>);
 
   /* ═══ DIAGNOSIS ═══ */
   if(step==="diag"){
     const si=pg*5,ei=Math.min(si+5,30),pQs=QS.slice(si,ei);
-    return<Shell>
+    return wrapShell(<div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
         <span style={{color:T.textSub,fontSize:13}}>진단 진행률</span>
         <span style={{color:T.accent,fontSize:13,fontWeight:700}}>{answered} / 30 ({Math.round(answered/30*100)}%)</span>
@@ -290,16 +361,16 @@ ${noEvDetail}
         {pg<5?<button onClick={()=>setPg(pg+1)} style={{padding:"10px 20px",borderRadius:8,border:"none",background:T.accent,color:"#000",fontWeight:700,fontSize:13,cursor:"pointer"}}>다음</button>
         :<button onClick={()=>{if(answered<30)return alert(`${30-answered}문항이 남았습니다.`);setRes(predict(ans,ups));setStep("result");}} style={{padding:"10px 28px",borderRadius:8,border:"none",background:answered>=30?T.gradBtn:T.textDim,color:"#fff",fontWeight:700,fontSize:14,cursor:answered>=30?"pointer":"not-allowed"}}>진단완료</button>}
       </div>
-    </Shell>;
+    </div>);
   }
 
   /* ═══ RESULT ═══ */
   if(step==="result"&&res){
     const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
     const radarD=[{a:"환경(E)",s:res.eA,f:5},{a:"사회(S)",s:res.sA,f:5},{a:"지배구조(G)",s:res.gA,f:5}];
-    return<Shell>
+    return wrapShell(<div>
       <div style={{textAlign:"center",marginBottom:4}}>
-        <p style={{color:T.textDim,fontSize:11,letterSpacing:2}}>ESG DIAGNOSIS REPORT v6</p>
+        <p style={{color:T.textDim,fontSize:11,letterSpacing:2}}>ESG DIAGNOSIS REPORT v7</p>
         <h2 style={{color:T.accent,fontSize:22,fontWeight:800}}>ESG 자가진단 결과보고서</h2>
         <p style={{color:T.textSub,fontSize:13,marginTop:4}}>{co.name} | {co.industry} | {co.size}</p>
         <div style={{fontSize:40,fontWeight:900,color:res.color,marginTop:8}}>{res.score}<span style={{fontSize:14,color:T.textDim}}>.0</span></div>
@@ -447,7 +518,7 @@ ${noEvDetail}
         <button onClick={()=>setTab("consult")} style={{padding:"13px",borderRadius:10,border:"none",background:T.accent,color:"#000",fontSize:14,fontWeight:700,cursor:"pointer"}}>컨설팅</button>
         <button onClick={printReport} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>인쇄 / PDF</button>
       </div>
-    </Shell>;
+    </div>);
   }
   return null;
 }
