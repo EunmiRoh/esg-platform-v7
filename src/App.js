@@ -197,18 +197,44 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 # ${co.name} ESG 맞춤 컨설팅 보고서
 
 ## 1. 종합진단
-## 2. 환경(E) 영역 개선과제 (취약문항별 현황→문제점→개선방안→필요서류→수치목표→기간/비용)
-## 3. 사회(S) 영역 개선과제
-## 4. 지배구조(G) 영역 개선과제
-## 5. 증빙자료 보완 가이드
-## 6. 실행 로드맵 (단기/중기/장기)
-## 7. 기대효과
+- 현재 등급·점수 해석, 핵심 강점 3가지, 시급한 과제 3가지
+- 산업 내 상대 위치 (출처: 중소기업 ESG 자가진단 실증 분석)
 
-한국어, ${co.industry} 특성 반영, 구체적 서류명·양식·수치 포함.`;
+## 2. 환경(E) 영역 개선과제
+- 취약문항별: 현황분석→법규위반 리스크→구체적 개선방안→필요서류 양식(항목 나열)→수치목표→기간/비용
+- 관련 법규 조항 명시, 인증 기준(ISO 14001 등) 연계
+- 표 형태로 문항별 개선 로드맵 요약
+
+## 3. 사회(S) 영역 개선과제
+- 동일 구조, 산업안전보건법·근로기준법 등 관련 법규 명시
+
+## 4. 지배구조(G) 영역 개선과제
+- 동일 구조, 청탁금지법·공정거래법 등 관련 법규 명시
+
+## 5. 증빙자료 보완 가이드
+- 미비 항목별 필요서류, 작성항목 체크리스트, 중소기업중앙회 ESG 규정례 양식 참조
+
+## 6. 실행 로드맵
+- 표 형태: 시기(단기/중기/장기) | 과제 | 담당 | 예산 | KPI
+- 단기(0~6개월): 즉시 실행, 비용 최소
+- 중기(6~18개월): 시스템 구축, 인증 취득
+- 장기(18~36개월): 고도화, 외부 공시
+
+## 7. 기대효과
+- 등급 향상 시나리오 (현재 ${res.grade} → 1~2단계 상향 목표)
+- 정량적 기대효과: 법규 위반 과태료 절감, ESG 금융 혜택, 거래처 대응력
+
+[작성 지침]
+- 한국어로 작성
+- ${co.industry} 산업 특성을 구체적으로 반영
+- 모든 제안에 관련 법규·인증·가이드라인 출처를 명시
+- 표(markdown table)를 적극 활용하여 가독성 확보
+- 각 영역 개선과제에 최소 3개 이상 구체적 실행과제 포함
+- 반드시 모든 섹션을 빠짐없이 완성하세요. 중간에 끊기지 않도록 주의하세요.`;
 
     const startTime=Date.now();
     try{
-      const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:4000})});
+      const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:8000})});
       const d=await r.json();
       const elapsed=((Date.now()-startTime)/1000).toFixed(1);
       const ci=COND_INFO[useCondition];
@@ -639,3 +665,4 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
+
