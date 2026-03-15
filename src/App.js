@@ -173,6 +173,7 @@ export default function App(){
     RAG:{label:"RAG",desc:"+법규/인증 KB",avgTokenIn:510,avgTokenOut:1500,avgQuality:8.1},
     RAG_KG:{label:"RAG+KG",desc:"+지식그래프 맥락",avgTokenIn:958,avgTokenOut:1500,avgQuality:8.5},
   };
+  const COND_VER="v7";
   const genReport=async(cond)=>{
     const useCondition=cond||condition;
     if(!res)return;setRptLoading(true);setReport(null);setTokenInfo(null);
@@ -227,17 +228,23 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 
 [작성 지침]
 - 한국어로 작성, ${co.industry} 산업 특성 구체적 반영
+- 이 서비스를 이용하는 대상은 ESG에 대해 잘 모르는 중소기업입니다. 따라서:
+  * 취약 문항마다 "왜 미흡한지" 원인을 쉽게 설명하고
+  * "어떻게 개선하는지" 구체적 단계별 방법을 안내하고
+  * 관련 정보를 찾을 수 있는 참고 사이트/링크를 제시하세요 (예: 환경부 화학물질정보시스템 https://ncis.me.go.kr, 고용노동부 산업재해 통계 https://www.moel.go.kr, 에너지공단 TIPS https://tips.energy.or.kr 등)
+  * 자료 수집 방법도 구체적으로 안내하세요 (예: "한국환경공단 온실가스종합정보센터에서 업종별 배출계수를 다운로드하여 Scope1/2 산정")
+- 정량 데이터가 ESG 평가에 어떻게 반영되는지 설명 (예: "에너지 사용량 집계는 K-ESG E-2 지표의 필수 항목이며, 전년 대비 절감률이 등급에 직접 반영됩니다")
 - 모든 제안에 관련 법규·인증·가이드라인 출처를 괄호 안에 명시
-- 산업 내 상대 위치 출처: "중소기업 ESG 자가진단 실증 분석"
-- 비용/예산 관련 내용은 포함하지 마세요. 중소기업은 예산이 제한적이므로 "무엇을 해야 하는가"에만 집중
-- 단, 법규 위반 시 과태료가 있는 항목은 과태료 금액과 위반 조건을 명시
+- 산업 내 상대 위치: "(출처: 중소기업 ESG 자가진단 실증 분석, K-ESG 가이드라인 v2.0)"
+- 비용/예산 내용 제외. "무엇을 해야 하는가"에만 집중
+- 법규 위반 시 과태료가 있는 항목은 과태료 금액과 위반 조건을 명시
 - 각 영역 개선과제는 반드시 마크다운 표 사용:
-| 문항 | 현황분석 | 법규위반 리스크(과태료) | 개선방안 | 필요서류 | 기간 |
-|------|----------|------------------------|----------|----------|------|
-- 실행 로드맵: | 시기 | 과제 | 담당 | 완료기준(KPI) |
-- 체크리스트는 □ 기호 없이 간결하게 나열
-- 불필요한 줄바꿈·빈줄을 최소화하고 내용 밀도를 높이세요
-- 반드시 모든 섹션(1~7)을 빠짐없이 완성. 중간에 끊기지 마세요.`;
+| 문항 | 미흡 원인 | 법규위반 리스크(과태료) | 개선방안(단계별) | 필요서류 | 기간 |
+|------|----------|------------------------|-----------------|----------|------|
+- 실행 로드맵 표: | 시기 | 과제 | 담당 | 완료기준(KPI) |
+- 실행 로드맵 표에서 "단기/중기/장기"는 각각 행을 구분하되 병합하지 말고 각 과제마다 시기를 기재하세요
+- 줄바꿈·빈줄 최소화. 내용 밀도를 높이세요
+- 반드시 모든 섹션(1~7)을 빠짐없이 완성. 절대 중간에 끊기지 마세요.`;
 
     const startTime=Date.now();
     try{
@@ -280,8 +287,9 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 - 관련법규: ${w.law}
 - K-ESG 가이드: ${w.guide}
 - 작성가이드: ${w.template}
-
-실제 사용 가능한 수준의 완성된 문서를 작성하세요. 서식 헤더, 작성일자, 승인란을 포함하세요.`;
+- 수치 데이터가 포함되는 항목은 반드시 마크다운 표(| | |) 형식으로 작성
+- 서식 헤더, 작성일자(${new Date().toISOString().slice(0,10)}), 승인란을 포함
+- 실제 사용 가능한 수준의 완성된 문서를 작성하세요.`;
         const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:2000})});
         const d=await r.json();
         docs.push({code:w.c,title:w.docs[0],content:d.text||"생성 실패",question:w.t});
@@ -291,7 +299,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   // ── ZIP 다운로드 ──
-  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.5;color:#222;max-width:190mm;margin:15mm auto;padding:0 10mm}h1{font-size:16pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:6px;margin-bottom:12px}h2{font-size:13pt;color:#2563eb;margin-top:16px;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:3px}h3{font-size:11pt;color:#7c3aed;margin-top:10px;margin-bottom:4px}p{margin:4px 0}table{width:100%;border-collapse:collapse;margin:8px 0;font-size:9pt;table-layout:fixed;word-wrap:break-word}th{background:#f1f5f9;padding:4px 6px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:9pt}td{padding:3px 6px;border:1px solid #e2e8f0;font-size:9pt;vertical-align:top}li{margin:2px 0;padding:0}.footer{margin-top:20px;padding-top:8px;border-top:1px solid #ddd;font-size:8pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
+  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.4;color:#222;max-width:190mm;margin:15mm auto;padding:0 10mm}h1{font-size:16pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:6px;margin-bottom:10px}h2{font-size:13pt;color:#2563eb;margin-top:14px;margin-bottom:4px;border-bottom:1px solid #ddd;padding-bottom:3px}h3{font-size:11pt;color:#7c3aed;margin-top:8px;margin-bottom:2px}p{margin:2px 0;line-height:1.4}table{width:100%;border-collapse:collapse;margin:4px 0 8px 0;font-size:9pt;table-layout:fixed;word-wrap:break-word}th{background:#f1f5f9;padding:3px 5px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:8.5pt}td{padding:2px 5px;border:1px solid #e2e8f0;font-size:8.5pt;vertical-align:top}li{margin:1px 0;padding:0;line-height:1.3}br{line-height:0.8}.footer{margin-top:16px;padding-top:6px;border-top:1px solid #ddd;font-size:8pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
 
   const downloadZip=async()=>{
     const zip=new JSZip();
@@ -628,7 +636,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
               return<div key={c} style={{background:T.bg,borderRadius:6,padding:6,textAlign:"center"}}>
                 <div style={{color:T.textSub,fontWeight:600}}>{c==="RAG_KG"?"RAG+KG":c}</div>
                 <div>예상 토큰: ~{ci.avgTokenIn+ci.avgTokenOut}</div>
-                <div>품질(v5): {ci.avgQuality}/10</div>
+                <div>품질({COND_VER}): {ci.avgQuality}/10</div>
                 {has&&<div style={{color:T.accent}}>✓ 실행 {has.elapsed}초</div>}
               </div>;})}
           </div>
@@ -683,10 +691,11 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
                   });
                   return t+`</tbody></table>`;
                 });
-                html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:13px;font-weight:700;margin:12px 0 3px;padding-top:6px;border-top:1px solid ${sColor}15">$1</div>`);
+                html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:13px;font-weight:700;margin:10px 0 2px;padding-top:5px;border-top:1px solid ${sColor}15">$1</div>`);
                 html=html.replace(/\*\*(.*?)\*\*/g,`<strong style="color:${T.text}">$1</strong>`);
-                html=html.replace(/^- (.*$)/gm,`<div style="padding:0 0 0 14px;position:relative;line-height:1.45;margin:1px 0"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
-                html=html.replace(/\n\n/g,'<div style="height:3px"></div>');
+                html=html.replace(/^- (.*$)/gm,`<div style="padding:0 0 0 14px;position:relative;line-height:1.4;margin:0"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
+                html=html.replace(/^\d+\. (.*$)/gm,`<div style="padding:0 0 0 4px;line-height:1.4;margin:0">$&</div>`);
+                html=html.replace(/\n\n/g,'<div style="height:2px"></div>');
                 html=html.replace(/\n/g,'');
                 return html;
               };
@@ -738,7 +747,3 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
-
-
-
-
