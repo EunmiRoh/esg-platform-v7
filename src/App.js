@@ -301,12 +301,14 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 | 승인 | ○○○ | (서명) | |
 8. 제목 바로 다음 줄에 관련 표/내용 시작. 제목과 내용 사이에 빈줄 넣지 마세요
 9. 표 끝나고 다음 제목 사이에는 빈줄 1개
-10. 데이터 수집 출처와 프로세스를 문서 하단에 명시 (어디서 → 무엇을 → 어떻게)
-11. 관련 온라인 교육/참고 URL이 있으면 안내
-12. 관련법규: ${w.law} | K-ESG: ${w.guide}
-13. 작성가이드: ${w.template}
-14. 별첨 필요시 문서 끝에 "[별첨] 양식명" 형태로 작성
-15. 내용이 잘리지 않도록 반드시 완전한 문서로 작성하세요.`;
+10. 정량 데이터의 출처를 반드시 명시. 임의로 작성한 수치는 "(예시 데이터)" 표기
+11. 데이터 수집 방법: "어디서(사이트명+URL) → 무엇을(메뉴/화면) → 어떻게(다운로드/조회)" 상세 안내
+12. 온라인 교육 링크: 안전보건공단 https://www.kosha.or.kr/kosha/index.do, 개인정보보호 교육 https://www.privacy.go.kr, 환경보전협회 https://www.epa.or.kr 등
+13. 관련법규: ${w.law} | K-ESG: ${w.guide}
+14. 작성가이드: ${w.template}
+15. 별첨 필요시 문서 끝에 "[별첨] 양식명" 형태로 양식 틀 작성
+16. 내용이 잘리지 않도록 반드시 완전한 문서로 작성하세요.
+17. 표의 모든 행은 동일한 열 수를 유지하세요. 행 병합 금지.`;
         const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:3000})});
         const d=await r.json();
         docs.push({code:w.c,title:w.docs[0],content:d.text||"생성 실패",question:w.t});
@@ -315,16 +317,28 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     setGeneratedDocs(docs);setDocLoading(false);
   };
 
-  // ── ZIP 다운로드 ──
+  // ── 다운로드 ──
   const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.3;color:#222;max-width:185mm;margin:15mm auto;padding:0 10mm}h1{font-size:15pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:5px;margin:0 0 8px 0}h2{font-size:12pt;color:#2563eb;margin:12px 0 1px 0;border-bottom:1px solid #ddd;padding-bottom:2px}h3{font-size:10.5pt;color:#7c3aed;margin:8px 0 0 0}p{margin:1px 0;line-height:1.3}table{width:100%;border-collapse:collapse;margin:1px 0 8px 0;font-size:8.5pt;table-layout:auto}th{background:#f1f5f9;padding:3px 4px;border:1px solid #cbd5e1;font-weight:600;text-align:center;font-size:8pt}td{padding:2px 4px;border:1px solid #e2e8f0;font-size:8pt;vertical-align:top;text-align:left}li{margin:0;padding:0;line-height:1.25}br{line-height:0.5}.footer{margin-top:12px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
 
-  const downloadZip=async()=>{
+  const mdTableToHtml=(md)=>md.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
+    const rows=match.trim().split("\n").filter(r=>r.trim());if(rows.length<2)return match;
+    const hdr=rows[0].split("|").filter(c=>c.trim());const drs=rows.slice(2);
+    let t=`<table><tr>`;hdr.forEach(h=>{t+=`<th>${h.trim()}</th>`;});t+=`</tr>`;
+    drs.forEach(r=>{const cells=r.split("|").filter(c=>c.trim());t+=`<tr>`;cells.forEach(c=>{t+=`<td>${c.trim()}</td>`;});t+=`</tr>`;});
+    return t+`</table>`;
+  });
+
+  // 일반 모드: PDF (브라우저 인쇄)
+  const downloadPdf=()=>window.print();
+
+  // 관리자 모드: ZIP (워드+CSV+증빙)
+  const downloadAdminZip=async()=>{
     const zip=new JSZip();
     const cn=co.name.replace(/[^가-힣a-zA-Z0-9]/g,"_");
     const now=new Date().toISOString().slice(0,10);
     const nowKr=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric"});
 
-    // 1. 자가진단 결과 보고서 (HTML/워드호환)
+    // 1. 자가진단 결과 보고서 (워드)
     let diagBody=`<p><strong>기업명:</strong> ${co.name} | <strong>산업군:</strong> ${co.industry} | <strong>규모:</strong> ${co.size} | <strong>진단일:</strong> ${nowKr}</p>`;
     diagBody+=`<h2>종합 진단 결과</h2><p><strong>ESG 종합:</strong> ${res.score}점 (${res.grade} ${res.label})<br/><strong>환경(E):</strong> ${res.eA}/5.0 | <strong>사회(S):</strong> ${res.sA}/5.0 | <strong>지배구조(G):</strong> ${res.gA}/5.0<br/><strong>우수문항:</strong> ${res.strong}개 | <strong>취약문항:</strong> ${res.weak}개</p>`;
     AREAS.forEach(a=>{
@@ -341,49 +355,28 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     diagBody+=`<div class="footer"><p>보고서 작성일: ${nowKr}</p></div>`;
     zip.file(`${cn}_ESG_자가진단_결과보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 자가진단 결과보고서`,diagBody));
 
-    // 2. AI 컨설팅 보고서 (HTML/워드호환)
+    // 2. 컨설팅 보고서 (워드)
     if(report){
       let rptHtml=report.replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^# (.*$)/gm,'<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^- (.*$)/gm,'<li>$1</li>');
-      // 표 변환
-      rptHtml=rptHtml.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
-        const rows=match.trim().split("\n").filter(r=>r.trim());if(rows.length<2)return match;
-        const hdr=rows[0].split("|").filter(c=>c.trim());const drs=rows.slice(2);
-        let t=`<table><tr>`;hdr.forEach(h=>{t+=`<th>${h.trim()}</th>`;});t+=`</tr>`;
-        drs.forEach(r=>{const cells=r.split("|").filter(c=>c.trim());t+=`<tr>`;cells.forEach(c=>{t+=`<td>${c.trim()}</td>`;});t+=`</tr>`;});
-        return t+`</table>`;
-      });
+      rptHtml=mdTableToHtml(rptHtml);
       rptHtml=rptHtml.replace(/\n/g,'<br/>');
       rptHtml+=`<div class="footer"><p>보고서 작성일: ${nowKr}<br/>출처: 중소기업 ESG 자가진단 실증 분석 · K-ESG 가이드라인 v2.0 · 중소기업중앙회 ESG 규정례</p></div>`;
-      // 제목 중복 제거: # 제목이 이미 makeDocHtml에서 <h1>으로 들어가므로 본문에서 첫 # 제거
       rptHtml=rptHtml.replace(/^<h1>.*?<\/h1>(<br\/>)*/,'');
       zip.file(`${cn}_ESG_컨설팅_보고서_${now}.doc`,makeDocHtml(`${co.name} ESG 맞춤 컨설팅 보고서`,rptHtml));
     }
 
-    // 3. 증빙자료 생성물 (HTML/워드호환, 개별 파일)
-    const mdTableToHtml=(md)=>md.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
-      const rows=match.trim().split("\n").filter(r=>r.trim());if(rows.length<2)return match;
-      const hdr=rows[0].split("|").filter(c=>c.trim());const drs=rows.slice(2);
-      let t=`<table><tr>`;hdr.forEach(h=>{t+=`<th>${h.trim()}</th>`;});t+=`</tr>`;
-      drs.forEach(r=>{const cells=r.split("|").filter(c=>c.trim());t+=`<tr>`;cells.forEach(c=>{t+=`<td>${c.trim()}</td>`;});t+=`</tr>`;});
-      return t+`</table>`;
-    });
+    // 3. 증빙자료 (워드 개별파일)
     if(generatedDocs.length>0){
       const docsFolder=zip.folder("증빙자료");
       generatedDocs.forEach(d=>{
         let docBody=`<p><strong>기업명:</strong> ${co.name}<br/><strong>문항:</strong> ${d.code} — ${d.question}<br/><strong>생성일:</strong> ${nowKr}</p><hr/>`;
         let content=d.content;
         content=mdTableToHtml(content);
-        // ### → h3, ## → h2 변환 (남아있을 경우)
-        content=content.replace(/^### (.*$)/gm,'<h3>$1</h3>');
-        content=content.replace(/^## (.*$)/gm,'<h2>$1</h2>');
-        content=content.replace(/^# (.*$)/gm,'<h2>$1</h2>');
-        // \*\*\* 수평선 제거
-        content=content.replace(/^\*\*\*$/gm,'');
-        content=content.replace(/^---$/gm,'');
+        content=content.replace(/^### (.*$)/gm,'<h3>$1</h3>').replace(/^## (.*$)/gm,'<h2>$1</h2>').replace(/^# (.*$)/gm,'<h2>$1</h2>');
+        content=content.replace(/^\*\*\*$/gm,'').replace(/^---$/gm,'');
         content=content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
         content=content.replace(/^- (.*$)/gm,'<li style="margin:0;line-height:1.25">$1</li>');
-        content=content.replace(/\n\n/g,'<br/>');
-        content=content.replace(/\n/g,'');
+        content=content.replace(/\n\n/g,'<br/>').replace(/\n/g,'');
         docBody+=content;
         docBody+=`<div class="footer"><p>본 문서는 중소기업중앙회 ESG 규정례 양식을 참고하여 AI가 작성한 초안입니다.</p></div>`;
         docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.doc`,makeDocHtml(`${co.name} — ${d.title}`,docBody));
@@ -768,10 +761,11 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:20}} data-np>
         <button onClick={reset} style={{padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontSize:14,fontWeight:600,cursor:"pointer"}}>새로 진단</button>
         <button onClick={()=>setTab("consult")} style={{padding:"13px",borderRadius:10,border:"none",background:T.accent,color:"#000",fontSize:14,fontWeight:700,cursor:"pointer"}}>컨설팅</button>
-        <button onClick={downloadZip} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>📦 결과 다운로드</button>
+        <button onClick={isAdmin?downloadAdminZip:downloadPdf} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>{isAdmin?"📦 ZIP 다운로드":"🖨 PDF 저장"}</button>
       </div>
     </div>);
   }
   return null;
 }
+
 
