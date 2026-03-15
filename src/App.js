@@ -110,6 +110,9 @@ export default function App(){
   const[report,setReport]=useState(null);
   const[rptLoading,setRptLoading]=useState(false);
   const[helpIdx,setHelpIdx]=useState(null);
+  const[condition,setCondition]=useState("RAG_KG");
+  const[tokenInfo,setTokenInfo]=useState(null);
+  const[rptByCondition,setRptByCondition]=useState({});
   const[isAdmin,setIsAdmin]=useState(false);
   const[showPw,setShowPw]=useState(false);
   const[pw,setPw]=useState("");
@@ -121,7 +124,7 @@ export default function App(){
 
   const doLogin=()=>{if(pw==="esg2026"){setIsAdmin(true);setShowPw(false);setPw("");}else alert("비밀번호 오류");};
   const doLogout=()=>{setIsAdmin(false);};
-  const reset=()=>{setStep("landing");setAns(Array(30).fill(0));setUps(Array(30).fill(null));setRes(null);setReport(null);setPg(0);setTab("summary");setBizVerified(false);setBizError("");};
+  const reset=()=>{setStep("landing");setAns(Array(30).fill(0));setUps(Array(30).fill(null));setRes(null);setReport(null);setPg(0);setTab("summary");setBizVerified(false);setBizError("");setCondition("RAG_KG");setTokenInfo(null);setRptByCondition({});};
 
   // 사업자번호 포맷: 000-00-00000 (10자리)
   const formatBiz=(v)=>{
@@ -163,78 +166,59 @@ export default function App(){
   };
 
   /* ── Consulting ── */
-  const genReport=async()=>{
-    if(!res)return;setRptLoading(true);setReport(null);
+  const COND_INFO={
+    Baseline:{label:"Baseline",desc:"자가진단 응답만",avgTokenIn:240,avgTokenOut:1500,avgQuality:7.4},
+    RAG:{label:"RAG",desc:"+법규/인증 KB",avgTokenIn:510,avgTokenOut:1500,avgQuality:8.1},
+    RAG_KG:{label:"RAG+KG",desc:"+지식그래프 맥락",avgTokenIn:958,avgTokenOut:1500,avgQuality:8.5},
+  };
+  const genReport=async(cond)=>{
+    const useCondition=cond||condition;
+    if(!res)return;setRptLoading(true);setReport(null);setTokenInfo(null);
     const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
     const weakByArea=AREAS.map(a=>({...a,items:res.weakItems.filter(w=>w.a===a.id)}));
     const noEvByArea=AREAS.map(a=>({...a,items:res.noEvidence.filter(w=>w.a===a.id)}));
     const weakDetail=weakByArea.map(a=>`[${a.label}(${a.id}) 취약문항]\n${a.items.length===0?"(없음)":a.items.map(w=>`- ${w.c}(${w.orig}점): ${w.t}\n  관련법규: ${w.law}\n  필요서류: ${w.docs.join(", ")}\n  작성가이드: ${w.template}`).join("\n")}`).join("\n\n");
     const noEvDetail=noEvByArea.map(a=>`[${a.label} 증빙미비]\n${a.items.length===0?"(없음)":a.items.map(w=>`- ${w.c}: ${w.t} → 필요서류: ${QS[w.idx].docs.join(", ")}`).join("\n")}`).join("\n\n");
 
-    const prompt=`당신은 ${co.industry} 분야 중소기업 ESG 전문 컨설턴트입니다. 아래 정보를 바탕으로 "${co.name}" 맞춤형 ESG 컨설팅 보고서를 작성하세요.
+    // 조건별 맥락 구성
+    const ragContext=useCondition!=="Baseline"?`\n[참고 법규 체계]\n환경: 환경정책기본법→ISO14001→환경목표(E-02)→성과관리(E-03)→GHG인벤토리(E-09)\n사회: 산업안전보건법→ISO45001→위험성평가(S-03)→비상대응(S-04)→교육(S-08)\n지배구조: 청탁금지법→윤리강령(G-01)→내부신고(G-06)→컴플라이언스(G-03)\n\n[영역별 취약문항 상세 (관련법규·필요서류·작성가이드 포함)]\n${weakDetail}\n\n[증빙자료 미비 현황]\n${noEvDetail}`:"";
+    const kgContext=useCondition==="RAG_KG"?`\n[지식그래프 기반 법규 연계]\n- 환경경영방침(E-01)→ISO14001(인증)→환경목표(E-02)→성과관리(E-03)\n- 안전보건(S-03)→ISO45001→위험성평가→비상대응(S-04)→교육(S-08)\n- 윤리강령(G-01)→내부신고(G-06)→컴플라이언스(G-03)→공정거래(G-04)\n\n[산업특성 분석]\n- ${co.industry} 강점: ${indInfo.strength}\n- ${co.industry} 약점: ${indInfo.weakness}\n- 권고: ${indInfo.tip}`:"";
+
+    const prompt=`당신은 ${co.industry} 분야 중소기업 ESG 전문 컨설턴트입니다. "${co.name}" 맞춤형 ESG 컨설팅 보고서를 작성하세요.
 
 [기업정보]
 기업명: ${co.name} | 산업군: ${co.industry} | 규모: ${co.size}
 ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 환경(E): ${res.eA}/5.0 | 사회(S): ${res.sA}/5.0 | 지배구조(G): ${res.gA}/5.0
-우수문항: ${res.strong}개 | 취약문항: ${res.weak}개
-
-[산업특성 분석 — 300개사 실증 데이터 기반]
-- ${co.industry} 강점: ${indInfo.strength}
-- ${co.industry} 약점: ${indInfo.weakness}
-- 권고사항: ${indInfo.tip}
-
-[영역별 취약문항 상세 (관련법규·필요서류·작성가이드 포함)]
-${weakDetail}
-
-[증빙자료 미비 현황]
-${noEvDetail}
-
-[참고 법규 체계 — 지식그래프 기반 연계]
-환경: 환경정책기본법→ISO14001→환경목표(E-02)→성과관리(E-03)→GHG인벤토리(E-09)
-사회: 산업안전보건법→ISO45001→위험성평가(S-03)→비상대응(S-04)→교육(S-08)
-지배구조: 청탁금지법→윤리강령(G-01)→내부신고(G-06)→컴플라이언스(G-03)
-
-다음 구조로 보고서를 작성하세요. 각 항목은 충분히 상세하게, 구체적 수치와 일정을 포함하세요.
+우수문항: ${res.strong}개 | 취약문항: ${res.weak}개${ragContext}${kgContext}
 
 # ${co.name} ESG 맞춤 컨설팅 보고서
 
 ## 1. 종합진단
-- 현재 등급과 점수 해석
-- ${co.industry} 산업 내 위치 (300개사 실증 분석 기준)
-- 핵심 강점 3가지와 시급한 과제 3가지
-
-## 2. 환경(E) 영역 개선과제
-- 취약문항별: 현황→문제점→개선방안→필요서류 양식→수치목표→소요기간/비용
-- 해당 법규 조항과 인증 기준 명시
-- ${co.name}이 즉시 작성할 수 있는 서류 템플릿 제시
-
+## 2. 환경(E) 영역 개선과제 (취약문항별 현황→문제점→개선방안→필요서류→수치목표→기간/비용)
 ## 3. 사회(S) 영역 개선과제
-- 동일 구조
-
 ## 4. 지배구조(G) 영역 개선과제
-- 동일 구조
-
 ## 5. 증빙자료 보완 가이드
-- 미비 항목별 필요서류, 작성방법, 참고양식
-
-## 6. 실행 로드맵
-- 단기(0~6개월): 즉시 실행 가능한 과제 (예산 소규모)
-- 중기(6~18개월): 시스템 구축 과제 (인증 취득 등)
-- 장기(18~36개월): 고도화 및 성과 창출
-
+## 6. 실행 로드맵 (단기/중기/장기)
 ## 7. 기대효과
-- 등급 향상 시나리오 (현재 ${res.grade} → 목표)
-- 경영 실익 (거래처 요구 대응, 금융혜택, 규제 리스크 감소)
 
-한국어로, ${co.industry} 중소기업에 실질적으로 도움이 되는 수준으로 작성하세요.
-모든 개선과제에 구체적 서류명, 양식 항목, 작성 예시를 포함하세요.`;
+한국어, ${co.industry} 특성 반영, 구체적 서류명·양식·수치 포함.`;
 
+    const startTime=Date.now();
     try{
       const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:4000})});
       const d=await r.json();
+      const elapsed=((Date.now()-startTime)/1000).toFixed(1);
+      const ci=COND_INFO[useCondition];
+      const estTokenIn=Math.round(prompt.length/3.5);
+      const estTokenOut=d.text?Math.round(d.text.length/3.5):0;
+      setTokenInfo({condition:useCondition,tokenIn:estTokenIn,tokenOut:estTokenOut,totalTokens:estTokenIn+estTokenOut,elapsed,quality:ci.avgQuality,efficiency:(ci.avgQuality/((estTokenIn+estTokenOut)/1000)).toFixed(2)});
       if(d.error){setReport("오류: "+d.error);}
-      else{setReport(d.text||"응답 없음");}
+      else{
+        const txt=d.text||"응답 없음";
+        setReport(txt);
+        setRptByCondition(prev=>({...prev,[useCondition]:{text:txt,tokenIn:estTokenIn,tokenOut:estTokenOut,elapsed}}));
+      }
     }catch(e){setReport("서버 호출 실패: "+e.message);}
     setRptLoading(false);
   };
@@ -484,24 +468,49 @@ ${noEvDetail}
 
       {/* CONSULTING */}
       {tab==="consult"&&<div>
-        {isAdmin&&<div style={{background:T.card,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${T.border}`}}>
-          <p style={{fontSize:11,color:T.accent,fontWeight:700,marginBottom:6}}>🔒 관리자: 조건 선택</p>
-          <div style={{display:"flex",gap:6}}>
-            {["Baseline","RAG","RAG_KG"].map(c=><span key={c} style={{flex:1,textAlign:"center",padding:"6px",borderRadius:6,border:`1px solid ${c==="RAG_KG"?T.accent:T.border}`,background:c==="RAG_KG"?T.accentDim:"transparent",color:c==="RAG_KG"?T.accent:T.textDim,fontSize:11,fontWeight:600}}>{c}{c==="RAG_KG"?" ✓":""}</span>)}
+        {isAdmin&&<div style={{background:T.card,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${T.border}`}}>
+          <p style={{fontSize:11,color:T.accent,fontWeight:700,marginBottom:8}}>🔒 관리자: 컨설팅 조건 선택</p>
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
+            {["Baseline","RAG","RAG_KG"].map(c=>{const ci=COND_INFO[c];const active=condition===c;const has=!!rptByCondition[c];
+              return<button key={c} onClick={()=>setCondition(c)} style={{flex:1,padding:"8px 4px",borderRadius:8,border:`1.5px solid ${active?T.accent:has?T.blue+"66":T.border}`,background:active?T.accentDim:has?T.blueDim:"transparent",color:active?T.accent:has?T.blue:T.textDim,fontSize:12,fontWeight:700,cursor:"pointer",textAlign:"center"}}>
+                {c==="RAG_KG"?"RAG+KG":c}{active?" ●":has?" ✓":""}
+                <div style={{fontSize:9,fontWeight:400,marginTop:2,opacity:.7}}>{ci.desc}</div>
+              </button>;})}
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,fontSize:10,color:T.textDim}}>
+            {["Baseline","RAG","RAG_KG"].map(c=>{const ci=COND_INFO[c];const has=rptByCondition[c];
+              return<div key={c} style={{background:T.bg,borderRadius:6,padding:6,textAlign:"center"}}>
+                <div style={{color:T.textSub,fontWeight:600}}>{c==="RAG_KG"?"RAG+KG":c}</div>
+                <div>예상 토큰: ~{ci.avgTokenIn+ci.avgTokenOut}</div>
+                <div>품질(v5): {ci.avgQuality}/10</div>
+                {has&&<div style={{color:T.accent}}>✓ 실행 {has.elapsed}초</div>}
+              </div>;})}
+          </div>
+          {Object.keys(rptByCondition).length>=2&&<div style={{marginTop:8,padding:8,background:T.bg,borderRadius:6}}>
+            <p style={{fontSize:10,color:T.accent,fontWeight:700,marginBottom:4}}>📊 조건 비교</p>
+            {Object.entries(rptByCondition).map(([c,d])=><div key={c} style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.textSub,padding:"2px 0"}}>
+              <span>{c}</span><span>토큰:{d.tokenIn+d.tokenOut} | {d.elapsed}초 | {d.text.length}자</span>
+            </div>)}
+          </div>}
         </div>}
-        <button onClick={genReport} disabled={rptLoading} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16}}>
-          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"}
+        <button onClick={()=>genReport()} disabled={rptLoading} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",background:rptLoading?T.textDim:T.gradBtn,color:"#fff",fontSize:15,fontWeight:700,cursor:rptLoading?"wait":"pointer",marginBottom:16}}>
+          {rptLoading?"⏳ 보고서 생성 중... (30~60초)":"🤖 "+co.name+" 맞춤 컨설팅 보고서 생성"+(isAdmin?" ("+condition+")":"")}
         </button>
+        {tokenInfo&&<div style={{display:"flex",gap:8,marginBottom:12,fontSize:11}}>
+          <span style={{background:T.accentDim,color:T.accent,padding:"3px 8px",borderRadius:5}}>조건: {tokenInfo.condition}</span>
+          <span style={{background:T.blueDim,color:T.blue,padding:"3px 8px",borderRadius:5}}>토큰: {tokenInfo.totalTokens.toLocaleString()}</span>
+          <span style={{background:T.purpleDim,color:T.purple,padding:"3px 8px",borderRadius:5}}>응답: {tokenInfo.elapsed}초</span>
+          <span style={{background:T.greenDim,color:T.green,padding:"3px 8px",borderRadius:5}}>효율: {tokenInfo.efficiency}</span>
+        </div>}
         {report&&<div style={{background:T.card,borderRadius:14,padding:24,border:`1px solid ${T.border}`,animation:"fadeUp .5s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:14,marginBottom:16,borderBottom:`1px solid ${T.border}`}}>
             <div>
               <h3 style={{color:T.accent,fontSize:16,fontWeight:700}}>{co.name} ESG 맞춤 컨설팅 보고서</h3>
-              <p style={{color:T.textDim,fontSize:11,marginTop:2}}>{co.industry} · {res.grade} {res.label} · RAG+KG 기반 분석</p>
+              <p style={{color:T.textDim,fontSize:11,marginTop:2}}>{co.industry} · {res.grade} {res.label} · {condition} 기반</p>
             </div>
             <span style={{background:T.accentDim,color:T.accent,padding:"3px 10px",borderRadius:5,fontSize:10,fontWeight:600}}>AI Generated</span>
           </div>
-          <div style={{fontSize:14,color:T.text,lineHeight:1.85,whiteSpace:"pre-wrap"}}>{report}</div>
+          <div style={{fontSize:14,color:T.text,lineHeight:1.85}} dangerouslySetInnerHTML={{__html:report.replace(/^### (.*$)/gm,'<h4 style="color:#34d399;font-size:15px;font-weight:700;margin:16px 0 8px">$1</h4>').replace(/^## (.*$)/gm,'<h3 style="color:#60a5fa;font-size:17px;font-weight:700;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #1e3044">$1</h3>').replace(/^# (.*$)/gm,'<h2 style="color:#34d399;font-size:20px;font-weight:800;margin:0 0 16px">$1</h2>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:#e2e8f0">$1</strong>').replace(/^- (.*$)/gm,'<div style="padding:2px 0 2px 16px;position:relative"><span style="position:absolute;left:0;color:#64748b">·</span>$1</div>').replace(/\n/g,'<br/>')}}/>
         </div>}
       </div>}
 
