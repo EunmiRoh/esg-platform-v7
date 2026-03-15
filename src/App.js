@@ -198,7 +198,8 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 
 ## 1. 종합진단
 - 현재 등급·점수 해석, 핵심 강점 3가지, 시급한 과제 3가지
-- 산업 내 상대 위치 (출처: 중소기업 ESG 자가진단 실증 분석)
+- 산업 내 상대 위치 (출처: 중소기업 ESG 자가진단 실증 분석, K-ESG 가이드라인 v2.0)
+- 산업 평균과 비교 시 반드시 "(출처: 중소기업 ESG 자가진단 실증 분석)" 표기
 
 ## 2. 환경(E) 영역 개선과제
 - 취약문항별: 현황분석→법규위반 리스크→구체적 개선방안→필요서류 양식(항목 나열)→수치목표→기간/비용
@@ -334,11 +335,21 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     }
 
     // 3. 증빙자료 생성물 (HTML/워드호환, 개별 파일)
+    const mdTableToHtml=(md)=>md.replace(/(\|.+\|[\r\n]+\|[-:| ]+\|[\r\n]+((\|.+\|[\r\n]*)+))/g,(match)=>{
+      const rows=match.trim().split("\n").filter(r=>r.trim());if(rows.length<2)return match;
+      const hdr=rows[0].split("|").filter(c=>c.trim());const drs=rows.slice(2);
+      let t=`<table><tr>`;hdr.forEach(h=>{t+=`<th>${h.trim()}</th>`;});t+=`</tr>`;
+      drs.forEach(r=>{const cells=r.split("|").filter(c=>c.trim());t+=`<tr>`;cells.forEach(c=>{t+=`<td>${c.trim()}</td>`;});t+=`</tr>`;});
+      return t+`</table>`;
+    });
     if(generatedDocs.length>0){
       const docsFolder=zip.folder("증빙자료");
       generatedDocs.forEach(d=>{
         let docBody=`<p><strong>기업명:</strong> ${co.name}<br/><strong>문항:</strong> ${d.code} — ${d.question}<br/><strong>생성일:</strong> ${nowKr}</p><hr/>`;
-        docBody+=d.content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+        let content=d.content;
+        content=mdTableToHtml(content);
+        content=content.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/^- (.*$)/gm,'<li>$1</li>').replace(/\n/g,'<br/>');
+        docBody+=content;
         docBody+=`<div class="footer"><p>본 문서는 중소기업중앙회 ESG 규정례 양식을 참고하여 AI가 작성한 초안입니다.</p></div>`;
         docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.doc`,makeDocHtml(`${co.name} — ${d.title}`,docBody));
       });
@@ -672,11 +683,11 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
                   });
                   return t+`</tbody></table>`;
                 });
-                html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:14px;font-weight:700;margin:14px 0 6px">$1</div>`);
+                html=html.replace(/^### (.*$)/gm,`<div style="color:${T.textSub};font-size:13px;font-weight:700;margin:12px 0 3px;padding-top:6px;border-top:1px solid ${sColor}15">$1</div>`);
                 html=html.replace(/\*\*(.*?)\*\*/g,`<strong style="color:${T.text}">$1</strong>`);
-                html=html.replace(/^- (.*$)/gm,`<div style="padding:1px 0 1px 16px;position:relative;line-height:1.5"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
-                html=html.replace(/\n\n/g,'<div style="height:4px"></div>');
-                html=html.replace(/\n/g,'<br/>');
+                html=html.replace(/^- (.*$)/gm,`<div style="padding:0 0 0 14px;position:relative;line-height:1.45;margin:1px 0"><span style="position:absolute;left:2px;color:${sColor}">·</span>$1</div>`);
+                html=html.replace(/\n\n/g,'<div style="height:3px"></div>');
+                html=html.replace(/\n/g,'');
                 return html;
               };
               return<div key={si} style={{background:sDim,borderRadius:10,padding:16,marginBottom:8,border:`1px solid ${sColor}22`}}>
@@ -727,6 +738,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
+
 
 
 
