@@ -228,23 +228,26 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 
 [작성 지침]
 - 한국어로 작성, ${co.industry} 산업 특성 구체적 반영
-- 이 서비스를 이용하는 대상은 ESG에 대해 잘 모르는 중소기업입니다. 따라서:
-  * 취약 문항마다 "왜 미흡한지" 원인을 쉽게 설명하고
-  * "어떻게 개선하는지" 구체적 단계별 방법을 안내하고
-  * 관련 정보를 찾을 수 있는 참고 사이트/링크를 제시하세요 (예: 환경부 화학물질정보시스템 https://ncis.me.go.kr, 고용노동부 산업재해 통계 https://www.moel.go.kr, 에너지공단 TIPS https://tips.energy.or.kr 등)
-  * 자료 수집 방법도 구체적으로 안내하세요 (예: "한국환경공단 온실가스종합정보센터에서 업종별 배출계수를 다운로드하여 Scope1/2 산정")
-- 정량 데이터가 ESG 평가에 어떻게 반영되는지 설명 (예: "에너지 사용량 집계는 K-ESG E-2 지표의 필수 항목이며, 전년 대비 절감률이 등급에 직접 반영됩니다")
+- 대상: ESG를 잘 모르는 중소기업. 따라서:
+  * 취약 문항마다 "왜 미흡한지" 원인을 쉽게 설명
+  * "어떻게 개선하는지" 구체적 단계별 방법 안내
+  * 관련 참고 사이트 URL 제시 (환경부 NCIS https://ncis.me.go.kr, 고용노동부 https://www.moel.go.kr, 에너지공단 TIPS https://tips.energy.or.kr, 안전보건공단 https://www.kosha.or.kr, 환경부 화학물질정보 https://icis.me.go.kr, 한국환경공단 온실가스종합정보센터 https://www.gir.go.kr 등)
+  * 자료 수집 방법을 상세하게: 어디에서 → 무엇을 → 어떻게 찾는지 단계적으로 안내
+  * 온라인 무료 교육이 있으면 링크 안내 (안전보건공단 교육센터, 개인정보보호위원회 교육 등)
+- 정량 데이터 수집 시 출처 명시하고, ESG 평가 반영 방식 설명
+- 과태료 항목은 반드시 근거 법령 조항과 과태료 금액을 함께 명시 (예: "산업안전보건법 제175조에 따라 1,000만원 이하 과태료")
 - 모든 제안에 관련 법규·인증·가이드라인 출처를 괄호 안에 명시
 - 산업 내 상대 위치: "(출처: 중소기업 ESG 자가진단 실증 분석, K-ESG 가이드라인 v2.0)"
 - 비용/예산 내용 제외. "무엇을 해야 하는가"에만 집중
-- 법규 위반 시 과태료가 있는 항목은 과태료 금액과 위반 조건을 명시
-- 각 영역 개선과제는 반드시 마크다운 표 사용:
-| 문항 | 미흡 원인 | 법규위반 리스크(과태료) | 개선방안(단계별) | 필요서류 | 기간 |
-|------|----------|------------------------|-----------------|----------|------|
-- 실행 로드맵 표: | 시기 | 과제 | 담당 | 완료기준(KPI) |
-- 실행 로드맵 표에서 "단기/중기/장기"는 각각 행을 구분하되 병합하지 말고 각 과제마다 시기를 기재하세요
-- 줄바꿈·빈줄 최소화. 내용 밀도를 높이세요
-- 반드시 모든 섹션(1~7)을 빠짐없이 완성. 절대 중간에 끊기지 마세요.`;
+- 각 영역 개선과제는 반드시 마크다운 표:
+| 문항 | 미흡 원인 | 법규위반 리스크(법령/과태료) | 개선방안(단계별) | 필요서류 | 기간 |
+|------|----------|----------------------------|-----------------|----------|------|
+- 실행 로드맵: 각 행에 시기 기재 (병합 금지)
+| 시기 | 과제 | 담당 | 완료기준(KPI) |
+|------|------|------|--------------|
+- ### 이나 *** 기호는 최소화. 소제목은 간결하게
+- 줄바꿈·빈줄 최소화. 내용 밀도 극대화
+- 반드시 모든 섹션(1~7) 완성. 절대 중간에 끊기지 마세요.`;
 
     const startTime=Date.now();
     try{
@@ -284,13 +287,18 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
 [작성 기준]
 - 중소기업중앙회 ESG 규정례 양식 준수
 - 기업명 "${co.name}"으로 작성
+- 작성자/담당자 이름은 "○○○"으로 표기
 - 관련법규: ${w.law}
 - K-ESG 가이드: ${w.guide}
 - 작성가이드: ${w.template}
-- 수치 데이터가 포함되는 항목은 반드시 마크다운 표(| | |) 형식으로 작성
-- 서식 헤더, 작성일자(${new Date().toISOString().slice(0,10)}), 승인란을 포함
-- 실제 사용 가능한 수준의 완성된 문서를 작성하세요.`;
-        const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:2000})});
+- 수치 데이터는 반드시 마크다운 표 형식 사용. 표의 열 수를 일정하게 유지
+- 서식 헤더, 작성일자(${new Date().toISOString().slice(0,10)}), 승인란(작성: ○○○ / 검토: ○○○ / 승인: ○○○) 포함
+- 데이터 출처가 있으면 문서 하단에 "출처:" 로 명시
+- 관련 온라인 교육/참고 사이트가 있으면 안내 (예: 안전보건공단 교육 https://www.kosha.or.kr, 환경부 교육 등)
+- ### 이나 *** 기호는 사용하지 마세요. 제목은 번호로만 구분 (1. 2. 3.)
+- 별첨이 필요한 경우 문서 끝에 "[별첨] 양식명" 형태로 양식 틀을 작성
+- 내용이 잘리지 않도록 완전한 문서로 작성하세요.`;
+        const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:3000})});
         const d=await r.json();
         docs.push({code:w.c,title:w.docs[0],content:d.text||"생성 실패",question:w.t});
       }catch(e){docs.push({code:w.c,title:w.docs[0],content:"생성 오류: "+e.message,question:w.t});}
@@ -299,7 +307,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   // ── ZIP 다운로드 ──
-  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.4;color:#222;max-width:190mm;margin:15mm auto;padding:0 10mm}h1{font-size:16pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:6px;margin-bottom:10px}h2{font-size:13pt;color:#2563eb;margin-top:14px;margin-bottom:4px;border-bottom:1px solid #ddd;padding-bottom:3px}h3{font-size:11pt;color:#7c3aed;margin-top:8px;margin-bottom:2px}p{margin:2px 0;line-height:1.4}table{width:100%;border-collapse:collapse;margin:4px 0 8px 0;font-size:9pt;table-layout:fixed;word-wrap:break-word}th{background:#f1f5f9;padding:3px 5px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:8.5pt}td{padding:2px 5px;border:1px solid #e2e8f0;font-size:8.5pt;vertical-align:top}li{margin:1px 0;padding:0;line-height:1.3}br{line-height:0.8}.footer{margin-top:16px;padding-top:6px;border-top:1px solid #ddd;font-size:8pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
+  const makeDocHtml=(title,bodyHtml)=>`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;line-height:1.35;color:#222;max-width:185mm;margin:15mm auto;padding:0 10mm}h1{font-size:15pt;color:#1a5c3a;border-bottom:2px solid #1a5c3a;padding-bottom:5px;margin-bottom:8px}h2{font-size:12pt;color:#2563eb;margin-top:10px;margin-bottom:2px;border-bottom:1px solid #ddd;padding-bottom:2px}h3{font-size:10.5pt;color:#7c3aed;margin-top:6px;margin-bottom:1px}p{margin:1px 0;line-height:1.35}table{width:100%;border-collapse:collapse;margin:2px 0 6px 0;font-size:8.5pt;table-layout:auto}th{background:#f1f5f9;padding:3px 4px;border:1px solid #cbd5e1;font-weight:600;text-align:left;font-size:8pt;white-space:nowrap}td{padding:2px 4px;border:1px solid #e2e8f0;font-size:8pt;vertical-align:top}li{margin:0;padding:0;line-height:1.3}br{line-height:0.6}.footer{margin-top:12px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#666}</style></head><body><h1>${title}</h1>${bodyHtml}</body></html>`;
 
   const downloadZip=async()=>{
     const zip=new JSZip();
@@ -747,3 +755,4 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   }
   return null;
 }
+
