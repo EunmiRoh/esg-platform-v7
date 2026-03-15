@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 /* ═══ DESIGN TOKENS — matching v5 exactly ═══ */
 const T={
@@ -224,6 +226,81 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
   };
 
   const printReport=()=>window.print();
+
+  // ── 증빙자료 생성 ──
+  const[docLoading,setDocLoading]=useState(false);
+  const[generatedDocs,setGeneratedDocs]=useState([]);
+
+  const generateEvidence=async()=>{
+    if(!res)return;setDocLoading(true);setGeneratedDocs([]);
+    const weakNeedDocs=res.weakItems.filter(w=>!w.hasEv).slice(0,5);
+    if(weakNeedDocs.length===0){alert("증빙 미비 취약문항이 없습니다.");setDocLoading(false);return;}
+    const docs=[];
+    for(const w of weakNeedDocs){
+      try{
+        const prompt=`"${co.name}" (${co.industry}, ${co.size})의 ESG 자가진단에서 "${w.c}: ${w.t}" 항목이 취약(${w.orig}점)으로 나왔습니다.
+이 항목의 증빙으로 제출할 수 있는 "${w.docs[0]}" 문서를 작성해주세요.
+
+[작성 기준]
+- 중소기업중앙회 ESG 규정례 양식 준수
+- 기업명 "${co.name}"으로 작성
+- 관련법규: ${w.law}
+- K-ESG 가이드: ${w.guide}
+- 작성가이드: ${w.template}
+
+실제 사용 가능한 수준의 완성된 문서를 작성하세요. 서식 헤더, 작성일자, 승인란을 포함하세요.`;
+        const r=await fetch("/api/consulting",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,max_tokens:2000})});
+        const d=await r.json();
+        docs.push({code:w.c,title:w.docs[0],content:d.text||"생성 실패",question:w.t});
+      }catch(e){docs.push({code:w.c,title:w.docs[0],content:"생성 오류: "+e.message,question:w.t});}
+    }
+    setGeneratedDocs(docs);setDocLoading(false);
+  };
+
+  // ── ZIP 다운로드 ──
+  const downloadZip=async()=>{
+    const zip=new JSZip();
+    const companyName=co.name.replace(/[^가-힣a-zA-Z0-9]/g,"_");
+    const now=new Date().toISOString().slice(0,10);
+
+    // 1. 자가진단 결과 보고서 (텍스트)
+    let diagReport=`ESG 자가진단 결과보고서\n${"=".repeat(40)}\n기업명: ${co.name}\n산업군: ${co.industry} | 규모: ${co.size}\n진단일: ${now}\n\nESG 종합: ${res.score}점 (${res.grade} ${res.label})\n환경(E): ${res.eA}/5.0\n사회(S): ${res.sA}/5.0\n지배구조(G): ${res.gA}/5.0\n우수문항: ${res.strong}개 | 취약문항: ${res.weak}개\n\n`;
+    AREAS.forEach(a=>{
+      const v=a.id==="E"?res.eA:a.id==="S"?res.sA:res.gA;
+      const sc=Math.round(v*20);const g=getGrade(sc);
+      diagReport+=`\n[${a.label} (${a.eng}) - ${sc}점 ${g.grade}]\n`;
+      QS.slice(a.range[0],a.range[1]).forEach((q,i)=>{
+        const s=res.adj[a.range[0]+i];diagReport+=`  ${q.c}: ${q.t} → ${Math.round(s*20)}점\n`;
+      });
+    });
+    const indInfo=INDUSTRY_INSIGHT[co.industry]||INDUSTRY_INSIGHT["제조업"];
+    diagReport+=`\n[산업 특성]\n강점: ${indInfo.strength}\n약점: ${indInfo.weakness}\n권고: ${indInfo.tip}\n`;
+    zip.file(`${companyName}_ESG_자가진단_결과보고서_${now}.txt`,diagReport);
+
+    // 2. AI 컨설팅 보고서
+    if(report){
+      zip.file(`${companyName}_ESG_컨설팅_보고서_${now}.txt`,`${co.name} ESG 맞춤 컨설팅 보고서\n조건: ${condition} | 생성일: ${now}\n${"=".repeat(40)}\n\n${report}`);
+    }
+
+    // 3. 증빙자료 생성물
+    if(generatedDocs.length>0){
+      const docsFolder=zip.folder("증빙자료");
+      generatedDocs.forEach((d,i)=>{
+        docsFolder.file(`${d.code}_${d.title.replace(/[^가-힣a-zA-Z0-9]/g,"_")}.txt`,`${co.name} - ${d.title}\n문항: ${d.code} ${d.question}\n생성일: ${now}\n${"=".repeat(40)}\n\n${d.content}`);
+      });
+    }
+
+    // 4. 문항별 점수 CSV
+    let csv="문항코드,문항내용,영역,원점수,보정점수,100점환산,등급,증빙유무\n";
+    QS.forEach((q,i)=>{
+      const s=res.adj[i];const sc100=Math.round(s*20);const g=getGrade(sc100);
+      csv+=`${q.c},"${q.t}",${q.a},${res.orig[i]},${s},${sc100},${g.grade},${ups[i]?"Y":"N"}\n`;
+    });
+    zip.file(`${companyName}_문항별_점수_${now}.csv`,"\uFEFF"+csv);
+
+    const blob=await zip.generateAsync({type:"blob"});
+    saveAs(blob,`${companyName}_ESG_진단결과_${now}.zip`);
+  };
 
   /* ═══ SHELL (not a component - just wrapping JSX) ═══ */
   const globalCSS=`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -514,11 +591,31 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
         </div>}
       </div>}
 
+      {/* CONSULTING - continued: evidence generation */}
+      {tab==="consult"&&report&&<div style={{marginTop:16}}>
+        <div style={{background:T.card,borderRadius:14,padding:20,border:`1px solid ${T.border}`}}>
+          <h4 style={{color:T.accent,fontSize:15,fontWeight:700,marginBottom:10}}>📋 증빙자료 자동 생성</h4>
+          <p style={{color:T.textSub,fontSize:12,marginBottom:12}}>취약 문항 중 증빙 미비 항목의 서류를 AI가 작성합니다. ({res.weakItems.filter(w=>!w.hasEv).length}건 대상)</p>
+          <button onClick={generateEvidence} disabled={docLoading} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:docLoading?T.textDim:T.blue,color:"#fff",fontSize:14,fontWeight:700,cursor:docLoading?"wait":"pointer",marginBottom:12}}>
+            {docLoading?"⏳ 증빙자료 생성 중...":"📄 증빙자료 일괄 생성 ("+res.weakItems.filter(w=>!w.hasEv).slice(0,5).length+"건)"}
+          </button>
+          {generatedDocs.length>0&&<div>
+            {generatedDocs.map((d,i)=><div key={i} style={{background:T.bg,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${T.border}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{color:T.accent,fontSize:12,fontWeight:700}}>{d.code} — {d.title}</span>
+                <span style={{fontSize:10,color:T.textDim}}>✓ 생성완료</span>
+              </div>
+              <div style={{fontSize:12,color:T.textSub,lineHeight:1.6,maxHeight:120,overflow:"auto",whiteSpace:"pre-wrap"}}>{d.content.slice(0,500)}{d.content.length>500?"...":""}</div>
+            </div>)}
+          </div>}
+        </div>
+      </div>}
+
       {/* Bottom buttons */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:20}} data-np>
         <button onClick={reset} style={{padding:"13px",borderRadius:10,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontSize:14,fontWeight:600,cursor:"pointer"}}>새로 진단</button>
         <button onClick={()=>setTab("consult")} style={{padding:"13px",borderRadius:10,border:"none",background:T.accent,color:"#000",fontSize:14,fontWeight:700,cursor:"pointer"}}>컨설팅</button>
-        <button onClick={printReport} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>인쇄 / PDF</button>
+        <button onClick={downloadZip} style={{padding:"13px",borderRadius:10,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>📦 결과 다운로드</button>
       </div>
     </div>);
   }
