@@ -122,12 +122,57 @@ export default function App(){
   const[bizError,setBizError]=useState("");
   const[bizVerified,setBizVerified]=useState(false);
   const[verifying,setVerifying]=useState(false);
+  // Admin dashboard state
+  const[currentPath]=useState(()=>window.location.pathname);
+  const[adminRecords,setAdminRecords]=useState(null);
+  const[adminLoading,setAdminLoading]=useState(false);
+  const[adminPw,setAdminPw]=useState("");
+  const[adminError,setAdminError]=useState("");
   const fRefs=useRef({});
   const answered=ans.filter(v=>v>0).length;
 
   const doLogin=()=>{if(pw==="esg2026"){setIsAdmin(true);setShowPw(false);setPw("");}else alert("비밀번호 오류");};
   const doLogout=()=>{setIsAdmin(false);};
   const reset=()=>{setStep("landing");setAns(Array(30).fill(0));setUps(Array(30).fill(null));setRes(null);setReport(null);setPg(0);setTab("summary");setBizVerified(false);setBizError("");setCondition("RAG_KG");setTokenInfo(null);setRptByCondition({});};
+
+  /* ── DB Save ── */
+  const saveToDb=async(company,result)=>{
+    try{
+      await fetch('/api/save-result',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({company,result}),
+      });
+    }catch(e){console.warn('DB save failed:',e);}
+  };
+
+  /* ── Admin: load records via API ── */
+  const loadAdminRecords=async(password)=>{
+    setAdminLoading(true);setAdminError("");
+    try{
+      const r=await fetch('/api/admin-results',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({password}),
+      });
+      const d=await r.json();
+      if(r.ok){setAdminRecords(d.data);setIsAdmin(true);}
+      else{setAdminError(d.error||'오류 발생');}
+    }catch(e){setAdminError('서버 오류: '+e.message);}
+    setAdminLoading(false);
+  };
+
+  /* ── Admin: CSV 다운로드 ── */
+  const downloadAdminCsv=()=>{
+    if(!adminRecords||!adminRecords.length)return;
+    let csv="\uFEFF진단일,기업명,사업자번호,기업규모,업종,ESG점수,등급,등급명,환경(E),사회(S),지배구조(G),우수문항,취약문항\n";
+    adminRecords.forEach(r=>{
+      const d=new Date(r.created_at).toLocaleDateString("ko-KR");
+      csv+=`${d},"${r.company_name}","${r.company_biz||''}","${r.company_size}","${r.company_industry}",${r.score},${r.grade},"${r.grade_label}",${r.e_score},${r.s_score},${r.g_score},${r.strong_count},${r.weak_count}\n`;
+    });
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    saveAs(blob,`ESG_진단이력_${new Date().toISOString().slice(0,10)}.csv`);
+  };
 
   // 사업자번호 포맷: 000-00-00000 (10자리)
   const formatBiz=(v)=>{
@@ -429,6 +474,95 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
     <main style={{maxWidth:800,margin:"0 auto",padding:"24px 20px 48px",animation:"fadeUp .4s ease"}}>{content}</main>
   </div>;
 
+  /* ═══ ADMIN ROUTE (/admin) ═══ */
+  if(currentPath==='/admin'){
+    const adminShell=`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');*{margin:0;padding:0;box-sizing:border-box}body{background:${T.bg};color:${T.text};font-family:'Pretendard',-apple-system,sans-serif}`;
+    return <div style={{minHeight:"100vh",background:T.bg,fontFamily:"'Pretendard',-apple-system,sans-serif",color:T.text}}>
+      <style>{adminShell}</style>
+      <nav style={{background:"rgba(12,21,32,.92)",backdropFilter:"blur(12px)",borderBottom:`1px solid ${T.border}`,position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:1200,margin:"0 auto",padding:"0 20px",display:"flex",alignItems:"center",height:48,justifyContent:"space-between"}}>
+          <span style={{fontSize:14,fontWeight:700,color:T.text}}>🔒 ESG 자가진단 — 관리자</span>
+          <a href="/" style={{padding:"3px 12px",borderRadius:5,border:`1px solid ${T.border}`,background:"transparent",color:T.textDim,fontSize:11,textDecoration:"none",cursor:"pointer"}}>← 메인으로</a>
+        </div>
+      </nav>
+      <main style={{maxWidth:1200,margin:"0 auto",padding:"32px 20px 60px"}}>
+        {!isAdmin
+          ? <div style={{maxWidth:400,margin:"80px auto",background:T.card,borderRadius:16,padding:32,border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{fontSize:40,marginBottom:16}}>🔒</div>
+              <h2 style={{color:T.text,fontSize:20,fontWeight:700,marginBottom:8}}>관리자 로그인</h2>
+              <p style={{color:T.textSub,fontSize:13,marginBottom:24}}>비밀번호를 입력하세요</p>
+              <input
+                type="password" value={adminPw} onChange={e=>setAdminPw(e.target.value)}
+                placeholder="비밀번호" autoComplete="off" spellCheck={false}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)loadAdminRecords(adminPw);}}
+                style={{width:"100%",padding:"11px 14px",borderRadius:8,border:`1px solid ${adminError?T.red:T.border}`,background:T.bg,color:T.text,fontSize:14,outline:"none",marginBottom:adminError?8:16,boxSizing:"border-box"}}
+              />
+              {adminError&&<p style={{fontSize:12,color:T.red,marginBottom:12}}>{adminError}</p>}
+              <button onClick={()=>loadAdminRecords(adminPw)} disabled={adminLoading}
+                style={{width:"100%",padding:"11px",borderRadius:8,border:"none",background:T.gradBtn,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                {adminLoading?"확인 중...":"로그인"}
+              </button>
+            </div>
+          : <div>
+              {/* 헤더 */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <h2 style={{color:T.accent,fontSize:22,fontWeight:800}}>진단 이력 관리</h2>
+                  <p style={{color:T.textSub,fontSize:13,marginTop:4}}>총 <strong style={{color:T.text}}>{adminRecords?.length||0}건</strong>의 진단 이력</p>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>loadAdminRecords(adminPw)}
+                    style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                    🔄 새로고침
+                  </button>
+                  <button onClick={downloadAdminCsv} disabled={!adminRecords?.length}
+                    style={{padding:"8px 18px",borderRadius:8,border:"none",background:adminRecords?.length?T.accent:"#444",color:"#000",fontSize:13,fontWeight:700,cursor:adminRecords?.length?"pointer":"not-allowed"}}>
+                    📥 엑셀 다운로드
+                  </button>
+                </div>
+              </div>
+              {/* 테이블 */}
+              {!adminRecords||adminRecords.length===0
+                ? <div style={{textAlign:"center",padding:"80px 0",color:T.textDim,fontSize:14,background:T.card,borderRadius:12,border:`1px solid ${T.border}`}}>
+                    진단 이력이 없습니다.
+                  </div>
+                : <div style={{overflowX:"auto",background:T.card,borderRadius:12,border:`1px solid ${T.border}`}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:900}}>
+                      <thead>
+                        <tr style={{borderBottom:`2px solid ${T.accent}55`}}>
+                          {["진단일","기업명","사업자번호","규모","업종","ESG점수","등급","환경(E)","사회(S)","지배(G)","우수","취약"].map(h=>
+                            <th key={h} style={{padding:"12px 12px",color:T.textSub,fontWeight:600,fontSize:12,textAlign:"left",whiteSpace:"nowrap",background:T.card}}>{h}</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminRecords.map((r,i)=>{
+                          const g=getGrade(r.score);
+                          return <tr key={r.id||i} style={{borderBottom:`1px solid ${T.border}44`,background:i%2===0?"transparent":"rgba(255,255,255,.02)"}}>
+                            <td style={{padding:"10px 12px",color:T.textDim,fontSize:12,whiteSpace:"nowrap"}}>{new Date(r.created_at).toLocaleDateString("ko-KR")}</td>
+                            <td style={{padding:"10px 12px",color:T.text,fontWeight:600}}>{r.company_name}</td>
+                            <td style={{padding:"10px 12px",color:T.textSub,fontSize:12}}>{r.company_biz||'-'}</td>
+                            <td style={{padding:"10px 12px",color:T.textSub,fontSize:12}}>{r.company_size}</td>
+                            <td style={{padding:"10px 12px",color:T.textSub,fontSize:12}}>{r.company_industry}</td>
+                            <td style={{padding:"10px 12px",textAlign:"center"}}><span style={{color:g.color,fontWeight:800,fontSize:16}}>{r.score}</span></td>
+                            <td style={{padding:"10px 12px",textAlign:"center"}}><span style={{background:g.color+"22",color:g.color,padding:"2px 9px",borderRadius:6,fontSize:12,fontWeight:700}}>{r.grade}</span></td>
+                            <td style={{padding:"10px 12px",color:T.green,textAlign:"center",fontWeight:600}}>{r.e_score}</td>
+                            <td style={{padding:"10px 12px",color:T.blue,textAlign:"center",fontWeight:600}}>{r.s_score}</td>
+                            <td style={{padding:"10px 12px",color:T.purple,textAlign:"center",fontWeight:600}}>{r.g_score}</td>
+                            <td style={{padding:"10px 12px",color:T.accent,textAlign:"center"}}>{r.strong_count}</td>
+                            <td style={{padding:"10px 12px",color:T.red,textAlign:"center"}}>{r.weak_count}</td>
+                          </tr>;
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+              }
+            </div>
+        }
+      </main>
+    </div>;
+  }
+
   /* ═══ LANDING ═══ */
   if(step==="landing")return wrapShell(<div>
     <div style={{textAlign:"center",padding:"52px 20px 44px",background:`linear-gradient(160deg,#080e16,${T.bg},#0a1828)`,borderRadius:20,border:`1px solid ${T.border}`,marginBottom:32}}>
@@ -519,7 +653,7 @@ ESG 종합: ${res.score}점 (${res.grade} ${res.label})
       <div style={{display:"flex",gap:8,marginTop:16}} data-np>
         {pg>0&&<button onClick={()=>setPg(pg-1)} style={{padding:"10px 20px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontWeight:600,fontSize:13,cursor:"pointer"}}>이전</button>}
         {pg<5?<button onClick={()=>setPg(pg+1)} style={{padding:"10px 20px",borderRadius:8,border:"none",background:T.accent,color:"#000",fontWeight:700,fontSize:13,cursor:"pointer"}}>다음</button>
-        :<button onClick={()=>{if(answered<30)return alert(`${30-answered}문항이 남았습니다.`);setRes(predict(ans,ups));setStep("result");}} style={{padding:"10px 28px",borderRadius:8,border:"none",background:answered>=30?T.gradBtn:T.textDim,color:"#fff",fontWeight:700,fontSize:14,cursor:answered>=30?"pointer":"not-allowed"}}>진단완료</button>}
+        :<button onClick={()=>{if(answered<30)return alert(`${30-answered}문항이 남았습니다.`);const r=predict(ans,ups);setRes(r);setStep("result");saveToDb(co,r);}} style={{padding:"10px 28px",borderRadius:8,border:"none",background:answered>=30?T.gradBtn:T.textDim,color:"#fff",fontWeight:700,fontSize:14,cursor:answered>=30?"pointer":"not-allowed"}}>진단완료</button>}
       </div>
     </div>);
   }
